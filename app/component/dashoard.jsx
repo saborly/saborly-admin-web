@@ -1314,48 +1314,36 @@ const FoodItemForm = ({ onClose }) => {
     barcode: editingItem?.barcode || `BC-${Date.now()}`,
     servingSize: editingItem?.servingSize || '',
     weight: editingItem?.weight || 0,
-    tags: editingItem?.tags?.map(tag => tag.en).join(', ') || '',
+    tags: editingItem?.tags?.map(tag => typeof tag === 'object' ? tag.en : tag).join(', ') || '',
     availableFrom: editingItem?.availableFrom ? new Date(editingItem.availableFrom).toISOString().slice(0, 16) : '',
     availableUntil: editingItem?.availableUntil ? new Date(editingItem.availableUntil).toISOString().slice(0, 16) : '',
-    mealSizes: editingItem?.mealSizes?.map(size => ({
-      ...size,
-      name: size._multilingual?.name || {
-        en: size.name || '',
-        es: '',
-        ca: '',
-        ar: '',
-      },
+    mealSizes: editingItem?._multilingual?.mealSizes?.map(size => ({
+      name: size.name || { en: '', es: '', ca: '', ar: '' },
+      additionalPrice: size.additionalPrice || 0,
+    })) || editingItem?.mealSizes?.map(size => ({
+      name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '' },
       additionalPrice: size.additionalPrice || 0,
     })) || [],
-    extras: editingItem?.extras?.map(extra => ({
-      ...extra,
-      name: extra._multilingual?.name || {
-        en: extra.name || '',
-        es: '',
-        ca: '',
-        ar: '',
-      },
+    extras: editingItem?._multilingual?.extras?.map(extra => ({
+      name: extra.name || { en: '', es: '', ca: '', ar: '' },
+      price: extra.price || 0,
+    })) || editingItem?.extras?.map(extra => ({
+      name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '' },
       price: extra.price || 0,
     })) || [],
-    addons: editingItem?.addons?.map(addon => ({
-      ...addon,
-      name: addon._multilingual?.name || {
-        en: addon.name || '',
-        es: '',
-        ca: '',
-        ar: '',
-      },
+    addons: editingItem?._multilingual?.addons?.map(addon => ({
+      name: addon.name || { en: '', es: '', ca: '', ar: '' },
+      price: addon.price || 0,
+      imageUrl: addon.imageUrl || '',
+    })) || editingItem?.addons?.map(addon => ({
+      name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '' },
       price: addon.price || 0,
       imageUrl: addon.imageUrl || '',
     })) || [],
-    ingredients: editingItem?.ingredients?.map(ingredient => ({
-      ...ingredient,
-      name: ingredient._multilingual?.name || {
-        en: ingredient.name || '',
-        es: '',
-        ca: '',
-        ar: '',
-      },
+    ingredients: editingItem?._multilingual?.ingredients?.map(ingredient => ({
+      name: ingredient.name || { en: '', es: '', ca: '', ar: '' },
+    })) || editingItem?.ingredients?.map(ingredient => ({
+      name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '' },
     })) || [],
     allergens: editingItem?.allergens || [],
     nutrition: editingItem?.nutrition || {
@@ -1368,22 +1356,21 @@ const FoodItemForm = ({ onClose }) => {
       sodium: 0,
     },
     seoData: {
-      metaTitle: editingItem?.seoData?._multilingual?.metaTitle || {
+      metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || {
         en: editingItem?.seoData?.metaTitle || '',
         es: '',
         ca: '',
         ar: '',
       },
-      metaDescription: editingItem?.seoData?._multilingual?.metaDescription || {
+      metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
         en: editingItem?.seoData?.metaDescription || '',
         es: '',
         ca: '',
         ar: '',
       },
-      keywords: editingItem?.seoData?.keywords?.map(keyword => keyword.en).join(', ') || '',
+      keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
     },
   });
-
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -1399,70 +1386,134 @@ const FoodItemForm = ({ onClose }) => {
     loadCategories();
   }, [apiService]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      // Validate required fields
-      if (!formData.name.en || !formData.description.en || !formData.category) {
-        showNotificationDialog('Error', 'English name, description, and category are required.', 'error');
-        return;
-      }
-
-      const payload = {
-        ...formData,
-        name: formData.name.en, // Fallback for non-multilingual APIs
-        description: formData.description.en, // Fallback for non-multilingual APIs
-        _multilingual: {
-          name: formData.name,
-          description: formData.description,
-        },
-        seoData: {
-          ...formData.seoData,
-          metaTitle: formData.seoData.metaTitle.en, // Fallback
-          metaDescription: formData.seoData.metaDescription.en, // Fallback
-          _multilingual: {
-            metaTitle: formData.seoData.metaTitle,
-            metaDescription: formData.seoData.metaDescription,
-          },
-          keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({ en: k.trim() })) : [],
-        },
-        mealSizes: formData.mealSizes.map(size => ({
-          ...size,
-          name: size.name.en, // Fallback
-          _multilingual: { name: size.name },
-        })),
-        extras: formData.extras.map(extra => ({
-          ...extra,
-          name: extra.name.en, // Fallback
-          _multilingual: { name: extra.name },
-        })),
-        addons: formData.addons.map(addon => ({
-          ...addon,
-          name: addon.name.en, // Fallback
-          _multilingual: { name: addon.name },
-        })),
-        ingredients: formData.ingredients.map(ingredient => ({
-          ...ingredient,
-          name: ingredient.name.en, // Fallback
-          _multilingual: { name: ingredient.name },
-        })),
-        tags: formData.tags ? formData.tags.split(',').map(tag => ({ en: tag.trim() })) : [],
-      };
-
-      if (editingItem) {
-        await apiService.updateFoodItem(editingItem._id, payload);
-        showNotificationDialog('Success', 'Item updated successfully!', 'success');
-      } else {
-        await apiService.createFoodItem(payload);
-        showNotificationDialog('Success', 'Item created successfully!', 'success');
-      }
-      router.push('/items');
-      onClose();
-    } catch (error) {
-      showNotificationDialog('Error', 'Failed to save item. Please try again.', 'error');
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    // Validate required fields
+    if (!formData.name.en || !formData.description.en || !formData.category) {
+      showNotificationDialog('Error', 'English name, description, and category are required.', 'error');
+      return;
     }
-  };
 
+    // Build payload with proper multilingual structure
+    const payload = {
+      name: {
+        en: formData.name.en || '',
+        es: formData.name.es || '',
+        ca: formData.name.ca || '',
+        ar: formData.name.ar || ''
+      },
+      description: {
+        en: formData.description.en || '',
+        es: formData.description.es || '',
+        ca: formData.description.ca || '',
+        ar: formData.description.ar || ''
+      },
+      price: formData.price,
+      originalPrice: formData.originalPrice,
+      imageUrl: formData.imageUrl,
+      images: formData.images,
+      category: formData.category,
+      isVeg: formData.isVeg,
+      isVegan: formData.isVegan,
+      isGlutenFree: formData.isGlutenFree,
+      isNutFree: formData.isNutFree,
+      spiceLevel: formData.spiceLevel,
+      isFeatured: formData.isFeatured,
+      isPopular: formData.isPopular,
+      isActive: formData.isActive,
+      isAvailable: formData.isAvailable,
+      preparationTime: formData.preparationTime,
+      stockQuantity: formData.stockQuantity,
+      lowStockAlert: formData.lowStockAlert,
+      sku: formData.sku,
+      barcode: formData.barcode,
+      servingSize: formData.servingSize,
+      weight: formData.weight,
+      availableFrom: formData.availableFrom || null,
+      availableUntil: formData.availableUntil || null,
+      tags: formData.tags ? formData.tags.split(',').map(tag => ({
+        en: tag.trim(),
+        es: tag.trim(),
+        ca: tag.trim(),
+        ar: tag.trim()
+      })) : [],
+      nutrition: formData.nutrition,
+      allergens: formData.allergens,
+      mealSizes: formData.mealSizes.map(size => ({
+        name: {
+          en: size.name.en || '',
+          es: size.name.es || '',
+          ca: size.name.ca || '',
+          ar: size.name.ar || ''
+        },
+        additionalPrice: size.additionalPrice
+      })),
+      extras: formData.extras.map(extra => ({
+        name: {
+          en: extra.name.en || '',
+          es: extra.name.es || '',
+          ca: extra.name.ca || '',
+          ar: extra.name.ar || ''
+        },
+        price: extra.price
+      })),
+      addons: formData.addons.map(addon => ({
+        name: {
+          en: addon.name.en || '',
+          es: addon.name.es || '',
+          ca: addon.name.ca || '',
+          ar: addon.name.ar || ''
+        },
+        price: addon.price,
+        imageUrl: addon.imageUrl
+      })),
+      ingredients: formData.ingredients.map(ingredient => ({
+        name: {
+          en: ingredient.name.en || '',
+          es: ingredient.name.es || '',
+          ca: ingredient.name.ca || '',
+          ar: ingredient.name.ar || ''
+        }
+      })),
+      seoData: {
+        metaTitle: {
+          en: formData.seoData.metaTitle.en || '',
+          es: formData.seoData.metaTitle.es || '',
+          ca: formData.seoData.metaTitle.ca || '',
+          ar: formData.seoData.metaTitle.ar || ''
+        },
+        metaDescription: {
+          en: formData.seoData.metaDescription.en || '',
+          es: formData.seoData.metaDescription.es || '',
+          ca: formData.seoData.metaDescription.ca || '',
+          ar: formData.seoData.metaDescription.ar || ''
+        },
+        keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({
+          en: k.trim(),
+          es: k.trim(),
+          ca: k.trim(),
+          ar: k.trim()
+        })) : []
+      }
+    };
+
+    if (editingItem) {
+      await apiService.updateFoodItem(editingItem._id, payload);
+      showNotificationDialog('Success', 'Item updated successfully!', 'success');
+    } else {
+      await apiService.createFoodItem(payload);
+      showNotificationDialog('Success', 'Item created successfully!', 'success');
+    }
+    
+    // Reload data and close modal
+   
+    
+  } catch (error) {
+    console.error('Submit error:', error);
+    showNotificationDialog('Error', error.message || 'Failed to save item. Please try again.', 'error');
+  }
+};
   const mealSizesConfig = {
     defaultItem: () => ({
       name: { en: '', es: '', ca: '', ar: '' },
@@ -1609,7 +1660,92 @@ const FoodItemForm = ({ onClose }) => {
           id="primary-image-upload"
         />
       </div>
+     <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200">
+          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+            Pricing & Stock
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Current Price *</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Original Price</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.originalPrice}
+                onChange={(e) => setFormData({ ...formData, originalPrice: parseFloat(e.target.value) || 0 })}
+                placeholder="For showing discounts"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Prep Time (min) *</label>
+              <input
+                type="number"
+                min="1"
+                required
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.preparationTime}
+                onChange={(e) => setFormData({ ...formData, preparationTime: parseInt(e.target.value) || 15 })}
+              />
+            </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Stock Quantity</label>
+              <input
+                type="number"
+                min="0"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.stockQuantity}
+                onChange={(e) => setFormData({ ...formData, stockQuantity: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Low Stock Alert</label>
+              <input
+                type="number"
+                min="0"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.lowStockAlert}
+                onChange={(e) => setFormData({ ...formData, lowStockAlert: parseInt(e.target.value) || 10 })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">SKU</label>
+              <input
+                type="text"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                placeholder="Product SKU"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Barcode</label>
+              <input
+                type="text"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+                value={formData.barcode}
+                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                placeholder="Product barcode"
+              />
+            </div>
+          </div>
+        </div>
       {/* SEO Data */}
       <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
         <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
