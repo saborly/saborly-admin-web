@@ -2721,7 +2721,97 @@ const CategoryForm = () => {
             </div>
           </div>
         );
-
+  case 'banners':
+        return (
+          <DataGrids
+            data={banners}
+            title="Banners"
+            onEdit={(item) => openModal('banner', item)}
+            onDelete={handleDelete}
+            onAdd={() => openModal('banner')}
+            columns={[
+              {
+                header: 'Image',
+                key: 'imageUrl',
+                render: (item) => (
+                  <div className="relative">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-32 h-16 object-cover rounded-2xl border-2 border-gray-100"
+                    />
+                  </div>
+                ),
+              },
+              {
+                header: 'Title',
+                key: 'title',
+                render: (item) => (
+                  <div>
+                    <p className="font-bold text-gray-900">{item.title}</p>
+                    {item.description && <p className="text-xs text-gray-500">{item.description}</p>}
+                  </div>
+                ),
+              },
+              {
+                header: 'Category',
+                key: 'category',
+                render: (item) => (
+                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-200">
+                    {item.category?.name || item.category || 'None'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Order',
+                key: 'order',
+                render: (item) => (
+                  <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold">
+                    {item.order || 0}
+                  </span>
+                ),
+              },
+              {
+                header: 'Schedule',
+                key: 'schedule',
+                render: (item) => (
+                  <div className="text-sm">
+                    <p className="text-gray-900">{item.startDate ? formatDate(item.startDate) : 'No start date'}</p>
+                    <p className="text-xs text-gray-500">to {item.endDate ? formatDate(item.endDate) : 'No end date'}</p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Status',
+                key: 'isActive',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                  >
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ),
+              },
+            ]}
+            actions={[
+              {
+                icon: RefreshCw,
+                label: 'Toggle Status',
+                color: 'purple',
+                onClick: async (item) => {
+                  try {
+                    await apiService.toggleBannerStatus(item._id);
+                    showNotificationDialog('Success!', 'Banner status updated successfully');
+                    loadData();
+                  } catch (error) {
+                    showNotificationDialog('Error', 'Error updating banner status: ' + error.message, 'error');
+                  }
+                },
+              },
+            ]}
+          />
+        );
       case 'categories':
         return (
           <div>
@@ -2851,7 +2941,7 @@ const CategoryForm = () => {
                 data={foodItems}
                 title="Menu Items"
                 onEdit={(item) => openModal('menu-item', item)}
-                onDelete={(item) => handleDelete(item._id, 'food-item')}
+                onDelete={(item) => handleDelete(item, 'food-item')}
                 pagination={foodItemsPagination}
                 onPageChange={(page) => loadFoodItems({ page })}
                 columns={[
