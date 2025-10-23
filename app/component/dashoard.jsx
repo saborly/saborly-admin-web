@@ -138,7 +138,24 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+// Inside ApiService class
+async getDeliverySettings() {
+  return this.request('/settings/delivery');
+}
 
+async updateDeliverySettings(data) {
+  return this.request('/settings/delivery', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+async toggleDeliveryStatus(enabled, disabledMessage) {
+  return this.request('/settings/delivery/toggle', {
+    method: 'PATCH',
+    body: JSON.stringify({ isEnabled: enabled, disabledMessage }),
+  });
+}
   async getCategories(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/categories${query ? `?${query}` : ''}`);
@@ -703,15 +720,23 @@ const RestaurantAdminDashboard = () => {
   } = useAdminNotifications(apiService);
 
 
-  const [settings, setSettings] = useState({
-    restaurantName: 'Delicious Bites Restaurant',
-    contactPhone: '+1 (555) 123-4567',
-    address: '123 Food Street, Delicious City, DC 12345',
-    operatingHours: 'Monday - Friday: 11:00 AM - 10:00 PM\nSaturday - Sunday: 10:00 AM - 11:00 PM',
-    paymentGateway: 'stripe',
-    apiKey: '',
-    secretKey: '',
-  });
+ const [settings, setSettings] = useState({
+  restaurantName: 'Delicious Bites Restaurant',
+  contactPhone: '+1 (555) 123-4567',
+  address: '123 Food Street, Delicious City, DC 12345',
+  operatingHours: 'Monday - Friday: 11:00 AM - 10:00 PM\nSaturday - Sunday: 10:00 AM - 11:00 PM',
+  paymentGateway: 'stripe',
+  apiKey: '',
+  secretKey: '',
+  deliverySettings: {
+    isDeliveryEnabled: true,
+    defaultDeliveryFee: 2.99,
+    freeDeliveryThreshold: 50,
+    deliveryRadius: 10,
+    estimatedDeliveryTime: 45,
+    disabledMessage: 'Delivery service is temporarily unavailable. Please choose pickup.',
+  },
+});
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -961,15 +986,22 @@ const getSafeName = (name, language) => {
       setLoading(false);
     }
   };
-
-  const loadSettings = async () => {
-    try {
-      const response = await apiService.getSettings();
-      setSettings({ ...settings, ...response.settings });
-    } catch (error) {
-      console.log('Settings endpoint not available, using defaults');
-    }
-  };
+const loadSettings = async () => {
+  try {
+    const response = await apiService.getSettings();
+    const deliveryResponse = await apiService.getDeliverySettings();
+    setSettings({
+      ...settings,
+      ...response.settings,
+      deliverySettings: {
+        ...settings.deliverySettings,
+        ...deliveryResponse.deliverySettings,
+      },
+    });
+  } catch (error) {
+    console.log('Settings endpoint not available, using defaults');
+  }
+};
 
   const showNotificationDialog = (title, message, type = 'success') => {
     setNotificationDialog({ isOpen: true, title, message, type });
@@ -1026,46 +1058,55 @@ const getSafeName = (name, language) => {
 
   // CRUD operations
   const handleSave = async (data, type) => {
-    setLoading(true);
-    try {
-      if (editingItem) {
-        switch (type) {
-          case 'category':
-            await apiService.updateCategory(editingItem._id, data);
-            break;
-          case 'menu-item':
-            await apiService.updateFoodItem(editingItem._id, data);
-            break;
-          case 'offer':
-            await apiService.updateOffer(editingItem._id, data);
-            break;
-          case 'settings':
-            await apiService.updateSettings(data);
-            break;
-        }
-        showNotificationDialog('Success!', `${type} updated successfully`);
-      } else {
-        switch (type) {
-          case 'category':
-            await apiService.createCategory(data);
-            break;
-          case 'menu-item':
-            await apiService.createFoodItem(data);
-            break;
-          case 'offer':
-            await apiService.createOffer(data);
-            break;
-        }
-        showNotificationDialog('Success!', `${type} created successfully`);
+  setLoading(true);
+  try {
+    if (editingItem) {
+      switch (type) {
+        case 'category':
+          await apiService.updateCategory(editingItem._id, data);
+          break;
+        case 'menu-item':
+          await apiService.updateFoodItem(editingItem._id, data);
+          break;
+        case 'offer':
+          await apiService.updateOffer(editingItem._id, data);
+          break;
+        case 'settings':
+          await apiService.updateSettings({
+            restaurantName: data.restaurantName,
+            contactPhone: data.contactPhone,
+            address: data.address,
+            operatingHours: data.operatingHours,
+            paymentGateway: data.paymentGateway,
+            apiKey: data.apiKey,
+            secretKey: data.secretKey,
+          });
+          await apiService.updateDeliverySettings(data.deliverySettings);
+          break;
       }
-      closeModal();
-      loadData();
-    } catch (error) {
-      showNotificationDialog('Error', 'Error: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
+      showNotificationDialog('Success!', `${type} updated successfully`);
+    } else {
+      switch (type) {
+        case 'category':
+          await apiService.createCategory(data);
+          break;
+        case 'menu-item':
+          await apiService.createFoodItem(data);
+          break;
+        case 'offer':
+          await apiService.createOffer(data);
+          break;
+      }
+      showNotificationDialog('Success!', `${type} created successfully`);
     }
-  };
+    closeModal();
+    loadData();
+  } catch (error) {
+    showNotificationDialog('Error', 'Error: ' + error.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = async (id, type) => {
     console.log('Deleting', type, 'with IDs:', id);
@@ -2272,121 +2313,295 @@ const CategoryForm = () => {
       </div>
     );
   };
-  const SettingsForm = () => {
-    const [formData, setFormData] = useState(settings);
+ const SettingsForm = () => {
+  const [formData, setFormData] = useState(settings);
+  const [toggling, setToggling] = useState(false);
 
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      handleSave(formData, 'settings');
-      setSettings(formData);
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleSave(formData, 'settings');
+    setSettings(formData);
+  };
 
-    return (
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Restaurant Info */}
-        <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            Restaurant Information
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Restaurant Name</label>
-              <input
-                type="text"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
-                value={formData.restaurantName}
-                onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Contact Phone</label>
-              <input
-                type="tel"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
-                value={formData.contactPhone}
-                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="mt-6">
-            <label className="block text-sm font-semibold text-gray-800 mb-3">Address</label>
+  const handleToggleDelivery = async (enabled) => {
+    setToggling(true);
+    try {
+      const response = await apiService.toggleDeliveryStatus(enabled, formData.deliverySettings.disabledMessage);
+      setFormData({
+        ...formData,
+        deliverySettings: {
+          ...formData.deliverySettings,
+          ...response.deliverySettings,
+        },
+      });
+      showNotificationDialog(
+        'Success!',
+        enabled ? 'Delivery service enabled' : 'Delivery service disabled',
+        'success'
+      );
+    } catch (error) {
+      showNotificationDialog('Error', 'Failed to update delivery status: ' + error.message, 'error');
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Restaurant Info */}
+      <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-200">
+        <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          Restaurant Information
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3">Restaurant Name</label>
             <input
               type="text"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              value={formData.restaurantName}
+              onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
             />
           </div>
-          <div className="mt-6">
-            <label className="block text-sm font-semibold text-gray-800 mb-3">Operating Hours</label>
-            <textarea
-              rows="4"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none bg-white"
-              value={formData.operatingHours}
-              onChange={(e) => setFormData({ ...formData, operatingHours: e.target.value })}
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3">Contact Phone</label>
+            <input
+              type="tel"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+              value={formData.contactPhone}
+              onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
             />
           </div>
         </div>
+        <div className="mt-6">
+          <label className="block text-sm font-semibold text-gray-800 mb-3">Address</label>
+          <input
+            type="text"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          />
+        </div>
+        <div className="mt-6">
+          <label className="block text-sm font-semibold text-gray-800 mb-3">Operating Hours</label>
+          <textarea
+            rows="4"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none bg-white"
+            value={formData.operatingHours}
+            onChange={(e) => setFormData({ ...formData, operatingHours: e.target.value })}
+          />
+        </div>
+      </div>
 
-        {/* Payment Settings */}
-        <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-            Payment Gateway Settings
-          </h4>
-          <div className="space-y-6">
+      {/* Payment Settings */}
+      <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200">
+        <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+          Payment Gateway Settings
+        </h4>
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3">Payment Gateway</label>
+            <select
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
+              value={formData.paymentGateway}
+              onChange={(e) => setFormData({ ...formData, paymentGateway: e.target.value })}
+            >
+              <option value="stripe">Stripe</option>
+              <option value="paypal">PayPal</option>
+              <option value="square">Square</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Payment Gateway</label>
-              <select
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
-                value={formData.paymentGateway}
-                onChange={(e) => setFormData({ ...formData, paymentGateway: e.target.value })}
-              >
-                <option value="stripe">Stripe</option>
-                <option value="paypal">PayPal</option>
-                <option value="square">Square</option>
-              </select>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">API Key</label>
+              <input
+                type="password"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white font-mono"
+                value={formData.apiKey}
+                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                placeholder="sk_live_..."
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-3">API Key</label>
-                <input
-                  type="password"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white font-mono"
-                  value={formData.apiKey}
-                  onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                  placeholder="sk_live_..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-3">Secret Key</label>
-                <input
-                  type="password"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white font-mono"
-                  value={formData.secretKey}
-                  onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
-                  placeholder="*****"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Secret Key</label>
+              <input
+                type="password"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white font-mono"
+                value={formData.secretKey}
+                onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
+                placeholder="*****"
+              />
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 flex items-center gap-3 font-semibold transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200"
-          >
-            {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-            <Save className="w-5 h-5" />
-            <span>Save Settings</span>
-          </button>
+      {/* Delivery Settings */}
+      <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-2xl border border-indigo-200">
+        <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+          Delivery Settings
+        </h4>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-gray-800">Delivery Service</label>
+              <p className="text-xs text-gray-600">
+                Enable or disable delivery service for your restaurant
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-medium ${formData.deliverySettings.isDeliveryEnabled ? 'text-emerald-600' : 'text-red-600'}`}>
+                {formData.deliverySettings.isDeliveryEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+              <input
+                type="checkbox"
+                checked={formData.deliverySettings.isDeliveryEnabled}
+                onChange={(e) => handleToggleDelivery(e.target.checked)}
+                disabled={toggling}
+                className="relative h-6 w-12 rounded-full border border-gray-300 bg-gray-200 transition-all duration-200 focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          {!formData.deliverySettings.isDeliveryEnabled && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+                <p className="text-sm text-red-600">
+                  Delivery is currently disabled. Customers can only place pickup orders.
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">Default Delivery Fee (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.deliverySettings.defaultDeliveryFee}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      defaultDeliveryFee: parseFloat(e.target.value) || 0,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">Free Delivery Threshold (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.deliverySettings.freeDeliveryThreshold}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      freeDeliveryThreshold: parseFloat(e.target.value) || 0,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500">Orders above this amount get free delivery</p>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">Delivery Radius (km)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                value={formData.deliverySettings.deliveryRadius}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      deliveryRadius: parseInt(e.target.value) || 1,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">Estimated Delivery Time (min)</label>
+              <input
+                type="number"
+                step="5"
+                min="10"
+                value={formData.deliverySettings.estimatedDeliveryTime}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      estimatedDeliveryTime: parseInt(e.target.value) || 10,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-800">
+              Disabled Message
+              <span className="text-xs text-gray-500 ml-2">
+                (Shown to customers when delivery is disabled)
+              </span>
+            </label>
+            <textarea
+              rows={3}
+              maxLength={200}
+              value={formData.deliverySettings.disabledMessage}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  deliverySettings: {
+                    ...formData.deliverySettings,
+                    disabledMessage: e.target.value,
+                  },
+                })
+              }
+              placeholder="Enter message for customers when delivery is unavailable"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
+            />
+            <p className="text-xs text-gray-500">
+              {formData.deliverySettings.disabledMessage.length}/200 characters
+            </p>
+          </div>
         </div>
-      </form>
-    );
-  };
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 flex items-center gap-3 font-semibold transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200"
+        >
+          {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+          <Save className="w-5 h-5" />
+          <span>Save Settings</span>
+        </button>
+      </div>
+    </form>
+  );
+};
 
   // Enhanced Data Grid Component
   const DataGrid = ({ data, title, columns, onEdit, onDelete, actions, onAdd, pagination, onPageChange }) => {
