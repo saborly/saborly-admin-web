@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from "next/navigation";
 import { useSearchParams } from 'next/navigation'; // For Next.js, or use equivalent for your framework
+import { useDebounce } from 'use-debounce'; // npm install use-debounce
 
 // Add these imports to your RestaurantAdminDashboard component
 import { useAdminNotifications } from '../../hooks/useAdminNotifications';
@@ -688,7 +689,6 @@ const RestaurantAdminDashboard = () => {
   const [modalType, setModalType] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [apiService] = useState(new ApiService());
@@ -709,6 +709,37 @@ const RestaurantAdminDashboard = () => {
   const [offers, setOffers] = useState([]);
   const [orders, setOrders] = useState([]);
   const searchParams = useSearchParams()
+
+const [searchTerm, setSearchTerm] = useState('');
+const [debouncedSearchTerm] = useDebounce(searchTerm, 500); // 50
+// ──────────────────────────────────────────────────────────────
+//  Reset every pagination state to page 1
+// ──────────────────────────────────────────────────────────────
+const resetAllPaginations = () => {
+  setPagination({ currentPage: 1, totalPages: 1, totalOffers: 0 });
+  setOrderPagination({ currentPage: 1, totalPages: 1, totalOrders: 0 });
+  setFoodItemsPagination({ currentPage: 1, totalPages: 1, totalItems: 0 });
+};
+useEffect(() => {
+  // 1. New search term (even empty)
+  resetAllPaginations();
+  loadData();               // ← will use `debouncedSearchTerm` (see loaders below)
+}, [debouncedSearchTerm]);
+
+useEffect(() => {
+  // 2. Tab switch
+  setSearchTerm('');        // clear the input box
+  resetAllPaginations();
+  loadData();               // fresh load for the new tab
+}, [activeTab]);
+
+useEffect(() => {
+  // If the user clears the field manually, keep the debounced value in sync
+  if (searchTerm === '' && debouncedSearchTerm !== '') {
+    // debounced value will become '' on the next debounce cycle – nothing to do
+  }
+}, [searchTerm, debouncedSearchTerm]);
+
   const {
     fcmToken,
     notification,
@@ -767,7 +798,17 @@ const RestaurantAdminDashboard = () => {
   useEffect(() => {
     loadOfferStats();
   }, []);
+useEffect(() => {
+  if (debouncedSearchTerm !== undefined) {
+    loadData();
+  }
+}, 
 
+[debouncedSearchTerm, activeTab]);
+
+useEffect(() => {
+  setSearchTerm(''); // Clear search when tab changes
+}, [activeTab]);
   useEffect(() => {
     loadData();
   }, [activeTab]);
@@ -846,7 +887,7 @@ const RestaurantAdminDashboard = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await apiService.getCategories();
+    const response = await apiService.getCategories({ search: debouncedSearchTerm });
       console.log('Raw categories response:', response);
 
       // Store raw categories with _multilingual data
@@ -883,7 +924,7 @@ const RestaurantAdminDashboard = () => {
       const queryParams = {
         page: params.page || foodItemsPagination.currentPage,
         limit: params.limit || 10,
-        search: params.search || searchTerm,
+      search: debouncedSearchTerm, // ← Add this
         includeInactive: true,
         lang: apiService.language,
       };
@@ -963,16 +1004,19 @@ const RestaurantAdminDashboard = () => {
     }
   };
   const loadBanners = async (params = {}) => {
-    const response = await apiService.getBanners(params);
-    setBanners(response.data || []);
+  const response = await apiService.getBanners({
+    ...params,
+    search: debouncedSearchTerm
+  });    setBanners(response.data || []);
   };
   const loadOrders = async (params = {}) => {
     setLoading(true);
     try {
-      const queryParams = {
-        page: params.page || 1,
-        limit: params.limit || 10,
-      };
+        const queryParams = {
+      page: params.page || 1,
+      limit: params.limit || 10,
+      search: debouncedSearchTerm, // ← Add this
+    };
       const response = await apiService.getOrders(queryParams);
       setOrders(response.orders || []);
       setOrderPagination({
@@ -3714,6 +3758,7 @@ const RestaurantAdminDashboard = () => {
           </div>
         </nav>
         <main className="flex-1 p-8 overflow-auto">
+          
           <NotificationPermissionBanner />
           {loading ? (
             <div className="flex items-center justify-center h-96">
