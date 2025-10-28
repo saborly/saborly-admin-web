@@ -2126,10 +2126,12 @@ const CategoryForm = () => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-3">Banner Image *</label>
-              <ImageUpload
-                value={formData.imageUrl}
-                onChange={(url) => setFormData({ ...formData, imageUrl: url })}
-              />
+           <ImageUpload
+  value={formData.imageUrl}
+  onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+  id={`banner-upload}`}  // UNIQUE ID
+/>
+
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-3">Category</label>
