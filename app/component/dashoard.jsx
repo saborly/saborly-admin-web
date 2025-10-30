@@ -1351,6 +1351,7 @@ const loadOffers = async (params = {}) => {
       { code: 'es', label: 'Spanish' },
       { code: 'ca', label: 'Catalan' },
       { code: 'ar', label: 'Arabic' },
+      { code: 'fr', label: 'French' },
     ];
 
     const [formData, setFormData] = useState({
@@ -1359,12 +1360,14 @@ const loadOffers = async (params = {}) => {
         es: '',
         ca: '',
         ar: '',
+        fr: '',
       },
       description: editingItem?._multilingual?.description || {
         en: editingItem?.description || '',
         es: '',
         ca: '',
         ar: '',
+        fr: '',
       },
       price: editingItem?.price || 0,
       originalPrice: editingItem?.originalPrice || 0,
@@ -1394,29 +1397,29 @@ const loadOffers = async (params = {}) => {
         name: size.name || { en: '', es: '', ca: '', ar: '' },
         additionalPrice: size.additionalPrice || 0,
       })) || editingItem?.mealSizes?.map(size => ({
-        name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '' },
+        name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '', fr: '' },
         additionalPrice: size.additionalPrice || 0,
       })) || [],
       extras: editingItem?._multilingual?.extras?.map(extra => ({
-        name: extra.name || { en: '', es: '', ca: '', ar: '' },
+        name: extra.name || { en: '', es: '', ca: '', ar: '', fr: '' },
         price: extra.price || 0,
       })) || editingItem?.extras?.map(extra => ({
-        name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '' },
+        name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '', fr: '' },
         price: extra.price || 0,
       })) || [],
       addons: editingItem?._multilingual?.addons?.map(addon => ({
-        name: addon.name || { en: '', es: '', ca: '', ar: '' },
+        name: addon.name || { en: '', es: '', ca: '', ar: '', fr: '' },
         price: addon.price || 0,
         imageUrl: addon.imageUrl || '',
       })) || editingItem?.addons?.map(addon => ({
-        name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '' },
+        name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '', fr: '' },
         price: addon.price || 0,
         imageUrl: addon.imageUrl || '',
       })) || [],
       ingredients: editingItem?._multilingual?.ingredients?.map(ingredient => ({
-        name: ingredient.name || { en: '', es: '', ca: '', ar: '' },
+        name: ingredient.name || { en: '', es: '', ca: '', ar: '', fr: '' },
       })) || editingItem?.ingredients?.map(ingredient => ({
-        name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '' },
+        name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '', fr: '' },
       })) || [],
       allergens: editingItem?.allergens || [],
       nutrition: editingItem?.nutrition || {
@@ -1434,12 +1437,14 @@ const loadOffers = async (params = {}) => {
           es: '',
           ca: '',
           ar: '',
+          fr: '',
         },
         metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
           en: editingItem?.seoData?.metaDescription || '',
           es: '',
           ca: '',
           ar: '',
+          fr: '',
         },
         keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
       },
@@ -1473,13 +1478,15 @@ const loadOffers = async (params = {}) => {
             en: formData.name.en || '',
             es: formData.name.es || '',
             ca: formData.name.ca || '',
-            ar: formData.name.ar || ''
+            ar: formData.name.ar || '',
+            fr: formData.name.fr || ''
           },
           description: {
             en: formData.description.en || '',
             es: formData.description.es || '',
             ca: formData.description.ca || '',
-            ar: formData.description.ar || ''
+            ar: formData.description.ar || '',
+            fr: formData.description.fr || ''
           },
           price: formData.price,
           originalPrice: formData.originalPrice,
@@ -1508,7 +1515,8 @@ const loadOffers = async (params = {}) => {
             en: tag.trim(),
             es: tag.trim(),
             ca: tag.trim(),
-            ar: tag.trim()
+            ar: tag.trim(),
+            fr: tag.trim()
           })) : [],
           nutrition: formData.nutrition,
           allergens: formData.allergens,
@@ -1517,7 +1525,8 @@ const loadOffers = async (params = {}) => {
               en: size.name.en || '',
               es: size.name.es || '',
               ca: size.name.ca || '',
-              ar: size.name.ar || ''
+              ar: size.name.ar || '',
+              fr: size.name.fr || ''
             },
             additionalPrice: size.additionalPrice
           })),
@@ -1526,7 +1535,8 @@ const loadOffers = async (params = {}) => {
               en: extra.name.en || '',
               es: extra.name.es || '',
               ca: extra.name.ca || '',
-              ar: extra.name.ar || ''
+              ar: extra.name.ar || '',
+              fr: extra.name.fr || ''
             },
             price: extra.price
           })),
@@ -1535,7 +1545,8 @@ const loadOffers = async (params = {}) => {
               en: addon.name.en || '',
               es: addon.name.es || '',
               ca: addon.name.ca || '',
-              ar: addon.name.ar || ''
+              ar: addon.name.ar || '',
+              fr: addon.name.fr || ''
             },
             price: addon.price,
             imageUrl: addon.imageUrl
@@ -1545,7 +1556,8 @@ const loadOffers = async (params = {}) => {
               en: ingredient.name.en || '',
               es: ingredient.name.es || '',
               ca: ingredient.name.ca || '',
-              ar: ingredient.name.ar || ''
+              ar: ingredient.name.ar || '',
+              fr: ingredient.name.fr || ''
             }
           })),
           seoData: {
@@ -1553,19 +1565,22 @@ const loadOffers = async (params = {}) => {
               en: formData.seoData.metaTitle.en || '',
               es: formData.seoData.metaTitle.es || '',
               ca: formData.seoData.metaTitle.ca || '',
-              ar: formData.seoData.metaTitle.ar || ''
+              ar: formData.seoData.metaTitle.ar || '',
+              fr: formData.seoData.metaTitle.fr || ''
             },
             metaDescription: {
               en: formData.seoData.metaDescription.en || '',
               es: formData.seoData.metaDescription.es || '',
               ca: formData.seoData.metaDescription.ca || '',
-              ar: formData.seoData.metaDescription.ar || ''
+              ar: formData.seoData.metaDescription.ar || '',
+              fr: formData.seoData.metaDescription.fr || ''
             },
             keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({
               en: k.trim(),
               es: k.trim(),
               ca: k.trim(),
-              ar: k.trim()
+              ar: k.trim(),
+              fr: k.trim()
             })) : []
           }
         };
@@ -1588,7 +1603,7 @@ const loadOffers = async (params = {}) => {
 
     const mealSizesConfig = {
       defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
+        name: { en: '', es: '', ca: '', ar: '', fr: '' },
         additionalPrice: 0,
       }),
       fields: [
@@ -1604,7 +1619,7 @@ const loadOffers = async (params = {}) => {
 
     const extrasConfig = {
       defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
+        name: { en: '', es: '', ca: '', ar: '', fr: '' },
         price: 0,
       }),
       fields: [
@@ -1620,7 +1635,7 @@ const loadOffers = async (params = {}) => {
 
     const ingredientsConfig = {
       defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
+        name: { en: '', es: '', ca: '', ar: '', fr: '' },
       }),
       fields: [
         ...languages.map(lang => ({
@@ -1634,7 +1649,7 @@ const loadOffers = async (params = {}) => {
 
     const addonsConfig = {
       defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
+        name: { en: '', es: '', ca: '', ar: '', fr: '' },
         price: 0,
         imageUrl: '',
       }),
@@ -1954,6 +1969,9 @@ const loadOffers = async (params = {}) => {
             </select>
           </div>
         </div>
+
+
+
 
         {/* Availability Schedule */}
         <div className="bg-gradient-to-br from-cyan-50 to-white p-6 rounded-2xl border border-cyan-200">
