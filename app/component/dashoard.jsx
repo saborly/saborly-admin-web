@@ -1331,7 +1331,7 @@ const loadOffers = async (params = {}) => {
   };
 
   // Enhanced Food Item Form
-  const FoodItemForm = ({ onClose }) => {
+ const FoodItemForm = ({ onClose }) => {
     const [apiService] = useState(new ApiService());
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -1346,29 +1346,26 @@ const loadOffers = async (params = {}) => {
       setNotificationDialog({ isOpen: true, title, message, type });
     };
 
-  const languages = [
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Spanish' },
-  { code: 'ca', label: 'Catalan' },
-  { code: 'ar', label: 'Arabic' },
-  { code: 'fr', label: 'French' }, // Added French
-];
+    const languages = [
+      { code: 'en', label: 'English' },
+      { code: 'es', label: 'Spanish' },
+      { code: 'ca', label: 'Catalan' },
+      { code: 'ar', label: 'Arabic' },
+    ];
 
     const [formData, setFormData] = useState({
-     name: editingItem?._multilingual?.name || {
-    en: editingItem?.name || '',
-    es: '',
-    ca: '',
-    ar: '',
-    fr: '', // Added French
-  },
-  description: editingItem?._multilingual?.description || {
-    en: editingItem?.description || '',
-    es: '',
-    ca: '',
-    ar: '',
-    fr: '', // Added French
-  },
+      name: editingItem?._multilingual?.name || {
+        en: editingItem?.name || '',
+        es: '',
+        ca: '',
+        ar: '',
+      },
+      description: editingItem?._multilingual?.description || {
+        en: editingItem?.description || '',
+        es: '',
+        ca: '',
+        ar: '',
+      },
       price: editingItem?.price || 0,
       originalPrice: editingItem?.originalPrice || 0,
       imageUrl: editingItem?.imageUrl || '',
@@ -1394,32 +1391,32 @@ const loadOffers = async (params = {}) => {
       availableFrom: editingItem?.availableFrom ? new Date(editingItem.availableFrom).toISOString().slice(0, 16) : '',
       availableUntil: editingItem?.availableUntil ? new Date(editingItem.availableUntil).toISOString().slice(0, 16) : '',
       mealSizes: editingItem?._multilingual?.mealSizes?.map(size => ({
-        name: size.name || { en: '', es: '', ca: '', ar: '',fr:'' },
+        name: size.name || { en: '', es: '', ca: '', ar: '' },
         additionalPrice: size.additionalPrice || 0,
       })) || editingItem?.mealSizes?.map(size => ({
-        name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '', fr: ''},
+        name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '' },
         additionalPrice: size.additionalPrice || 0,
       })) || [],
       extras: editingItem?._multilingual?.extras?.map(extra => ({
-        name: extra.name || { en: '', es: '', ca: '', ar: '', fr: '' },
+        name: extra.name || { en: '', es: '', ca: '', ar: '' },
         price: extra.price || 0,
       })) || editingItem?.extras?.map(extra => ({
-        name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '', fr: '' },
+        name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '' },
         price: extra.price || 0,
       })) || [],
       addons: editingItem?._multilingual?.addons?.map(addon => ({
-        name: addon.name || { en: '', es: '', ca: '', ar: '', fr: '' },
+        name: addon.name || { en: '', es: '', ca: '', ar: '' },
         price: addon.price || 0,
         imageUrl: addon.imageUrl || '',
       })) || editingItem?.addons?.map(addon => ({
-        name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '', fr: '' },
+        name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '' },
         price: addon.price || 0,
         imageUrl: addon.imageUrl || '',
       })) || [],
       ingredients: editingItem?._multilingual?.ingredients?.map(ingredient => ({
         name: ingredient.name || { en: '', es: '', ca: '', ar: '' },
       })) || editingItem?.ingredients?.map(ingredient => ({
-        name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '', fr: '' },
+        name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '' },
       })) || [],
       allergens: editingItem?.allergens || [],
       nutrition: editingItem?.nutrition || {
@@ -1431,23 +1428,21 @@ const loadOffers = async (params = {}) => {
         sugar: 0,
         sodium: 0,
       },
-  seoData: {
-    metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || {
-      en: editingItem?.seoData?.metaTitle || '',
-      es: '',
-      ca: '',
-      ar: '',
-      fr: '', // Added French
-    },
-    metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
-      en: editingItem?.seoData?.metaDescription || '',
-      es: '',
-      ca: '',
-      ar: '',
-      fr: '', // Added French
-    },
-    keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
-  },
+      seoData: {
+        metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || {
+          en: editingItem?.seoData?.metaTitle || '',
+          es: '',
+          ca: '',
+          ar: '',
+        },
+        metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
+          en: editingItem?.seoData?.metaDescription || '',
+          es: '',
+          ca: '',
+          ar: '',
+        },
+        keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
+      },
     });
 
     useEffect(() => {
@@ -1474,20 +1469,18 @@ const loadOffers = async (params = {}) => {
         }
 
         const payload = {
-    name: {
-    en: formData.name.en || '',
-    es: formData.name.es || '',
-    ca: formData.name.ca || '',
-    ar: formData.name.ar || '',
-    fr: formData.name.fr || '' // Added French
-  },
-  description: {
-    en: formData.description.en || '',
-    es: formData.description.es || '',
-    ca: formData.description.ca || '',
-    ar: formData.description.ar || '',
-    fr: formData.description.fr || '' // Added French
-  },
+          name: {
+            en: formData.name.en || '',
+            es: formData.name.es || '',
+            ca: formData.name.ca || '',
+            ar: formData.name.ar || ''
+          },
+          description: {
+            en: formData.description.en || '',
+            es: formData.description.es || '',
+            ca: formData.description.ca || '',
+            ar: formData.description.ar || ''
+          },
           price: formData.price,
           originalPrice: formData.originalPrice,
           imageUrl: formData.imageUrl,
@@ -1515,8 +1508,7 @@ const loadOffers = async (params = {}) => {
             en: tag.trim(),
             es: tag.trim(),
             ca: tag.trim(),
-            ar: tag.trim(),
-            fr: tag.trim() // Added French
+            ar: tag.trim()
           })) : [],
           nutrition: formData.nutrition,
           allergens: formData.allergens,
@@ -1525,8 +1517,7 @@ const loadOffers = async (params = {}) => {
               en: size.name.en || '',
               es: size.name.es || '',
               ca: size.name.ca || '',
-              ar: size.name.ar || '',
-              fr: size.name.fr || '' ,// Added French
+              ar: size.name.ar || ''
             },
             additionalPrice: size.additionalPrice
           })),
@@ -1535,8 +1526,7 @@ const loadOffers = async (params = {}) => {
               en: extra.name.en || '',
               es: extra.name.es || '',
               ca: extra.name.ca || '',
-              ar: extra.name.ar || '',
-              fr: extra.name.fr || '' ,// Added French
+              ar: extra.name.ar || ''
             },
             price: extra.price
           })),
@@ -1545,8 +1535,7 @@ const loadOffers = async (params = {}) => {
               en: addon.name.en || '',
               es: addon.name.es || '',
               ca: addon.name.ca || '',
-              ar: addon.name.ar || '',
-              fr: addon.name.fr || '' ,// Added French
+              ar: addon.name.ar || ''
             },
             price: addon.price,
             imageUrl: addon.imageUrl
@@ -1556,33 +1545,29 @@ const loadOffers = async (params = {}) => {
               en: ingredient.name.en || '',
               es: ingredient.name.es || '',
               ca: ingredient.name.ca || '',
-              ar: ingredient.name.ar || '',
-              fr: ingredient.name.fr || '' ,// Added French
+              ar: ingredient.name.ar || ''
             }
           })),
-       seoData: {
-    metaTitle: {
-      en: formData.seoData.metaTitle.en || '',
-      es: formData.seoData.metaTitle.es || '',
-      ca: formData.seoData.metaTitle.ca || '',
-      ar: formData.seoData.metaTitle.ar || '',
-      fr: formData.seoData.metaTitle.fr || '' // Added French
-    },
-    metaDescription: {
-      en: formData.seoData.metaDescription.en || '',
-      es: formData.seoData.metaDescription.es || '',
-      ca: formData.seoData.metaDescription.ca || '',
-      ar: formData.seoData.metaDescription.ar || '',
-      fr: formData.seoData.metaDescription.fr || '' // Added French
-    },
-    keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({
-      en: k.trim(),
-      es: k.trim(),
-      ca: k.trim(),
-      ar: k.trim(),
-      fr: k.trim() // Added French
-    })) : []
-  }
+          seoData: {
+            metaTitle: {
+              en: formData.seoData.metaTitle.en || '',
+              es: formData.seoData.metaTitle.es || '',
+              ca: formData.seoData.metaTitle.ca || '',
+              ar: formData.seoData.metaTitle.ar || ''
+            },
+            metaDescription: {
+              en: formData.seoData.metaDescription.en || '',
+              es: formData.seoData.metaDescription.es || '',
+              ca: formData.seoData.metaDescription.ca || '',
+              ar: formData.seoData.metaDescription.ar || ''
+            },
+            keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({
+              en: k.trim(),
+              es: k.trim(),
+              ca: k.trim(),
+              ar: k.trim()
+            })) : []
+          }
         };
 
         if (editingItem) {
@@ -1599,6 +1584,70 @@ const loadOffers = async (params = {}) => {
         console.error('Submit error:', error);
         showNotificationDialog('Error', error.message || 'Failed to save item. Please try again.', 'error');
       }
+    };
+
+    const mealSizesConfig = {
+      defaultItem: () => ({
+        name: { en: '', es: '', ca: '', ar: '' },
+        additionalPrice: 0,
+      }),
+      fields: [
+        ...languages.map(lang => ({
+          key: `name.${lang.code}`,
+          label: `Meal Size Name (${lang.label})`,
+          type: 'text',
+          placeholder: `e.g., Small, Medium, Large in ${lang.label}`,
+        })),
+        { key: 'additionalPrice', label: 'Additional Price', type: 'number', placeholder: 'e.g., 9.9' },
+      ],
+    };
+
+    const extrasConfig = {
+      defaultItem: () => ({
+        name: { en: '', es: '', ca: '', ar: '' },
+        price: 0,
+      }),
+      fields: [
+        ...languages.map(lang => ({
+          key: `name.${lang.code}`,
+          label: `Extra Name (${lang.label})`,
+          type: 'text',
+          placeholder: `e.g., Extra Cheese, Extra Sauce in ${lang.label}`,
+        })),
+        { key: 'price', label: 'Price', type: 'number', placeholder: 'e.g., 2.5' },
+      ],
+    };
+
+    const ingredientsConfig = {
+      defaultItem: () => ({
+        name: { en: '', es: '', ca: '', ar: '' },
+      }),
+      fields: [
+        ...languages.map(lang => ({
+          key: `name.${lang.code}`,
+          label: `Ingredient Name (${lang.label})`,
+          type: 'text',
+          placeholder: `e.g., Tomato, Cheese in ${lang.label}`,
+        })),
+      ],
+    };
+
+    const addonsConfig = {
+      defaultItem: () => ({
+        name: { en: '', es: '', ca: '', ar: '' },
+        price: 0,
+        imageUrl: '',
+      }),
+      fields: [
+        ...languages.map(lang => ({
+          key: `name.${lang.code}`,
+          label: `Addon Name (${lang.label})`,
+          type: 'text',
+          placeholder: `e.g., Coca-Cola, French Fries in ${lang.label}`,
+        })),
+        { key: 'price', label: 'Price', type: 'number', placeholder: 'e.g., 3.0' },
+        { key: 'imageUrl', label: 'Image', type: 'image' },
+      ],
     };
 
     return (
@@ -1853,6 +1902,112 @@ const loadOffers = async (params = {}) => {
             />
           </div>
         </div>
+
+        {/* Food Properties & Status */}
+        <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl border border-purple-200">
+          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+            Food Properties & Status
+          </h4>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+            {[
+              { key: 'isVeg', label: 'Vegetarian', desc: 'Contains no meat' },
+              { key: 'isVegan', label: 'Vegan', desc: 'Plant-based only' },
+              { key: 'isGlutenFree', label: 'Gluten Free', desc: 'No gluten ingredients' },
+              { key: 'isNutFree', label: 'Nut Free', desc: 'Safe from nuts' },
+              { key: 'isFeatured', label: 'Featured Item', desc: 'Show on homepage' },
+              { key: 'isPopular', label: 'Popular', desc: 'Mark as popular choice' },
+              { key: 'isActive', label: 'Active', desc: 'Available for ordering' },
+              { key: 'isAvailable', label: 'Available', desc: 'Currently in stock' },
+            ].map(({ key, label, desc }) => (
+              <div key={key} className="bg-white p-4 rounded-xl border border-gray-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <input
+                    type="checkbox"
+                    id={key}
+                    checked={formData[key]}
+                    onChange={(e) => setFormData({ ...formData, [key]: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <label htmlFor={key} className="text-sm font-semibold text-gray-800">
+                    {label}
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 ml-8">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-3">Spice Level</label>
+            <select
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white"
+              value={formData.spiceLevel}
+              onChange={(e) => setFormData({ ...formData, spiceLevel: e.target.value })}
+            >
+              <option value="none">None</option>
+              <option value="mild">Mild 🌶️</option>
+              <option value="medium">Medium 🌶️🌶️</option>
+              <option value="hot">Hot 🌶️🌶️🌶️</option>
+              <option value="very-hot">Very Hot 🌶️🌶️🌶️🌶️</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Availability Schedule */}
+        <div className="bg-gradient-to-br from-cyan-50 to-white p-6 rounded-2xl border border-cyan-200">
+          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+            Availability Schedule
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Available From</label>
+              <input
+                type="datetime-local"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all bg-white"
+                value={formData.availableFrom}
+                onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-3">Available Until</label>
+              <input
+                type="datetime-local"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all bg-white"
+                value={formData.availableUntil}
+                onChange={(e) => setFormData({ ...formData, availableUntil: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Array Fields */}
+        <FormArrayField
+          items={formData.mealSizes}
+          onChange={(mealSizes) => setFormData({ ...formData, mealSizes })}
+          fieldConfig={mealSizesConfig}
+          title="Meal Sizes"
+        />
+        <FormArrayField
+          items={formData.extras}
+          onChange={(extras) => setFormData({ ...formData, extras })}
+          fieldConfig={extrasConfig}
+          title="Extras"
+        />
+        <FormArrayField
+          items={formData.ingredients}
+          onChange={(ingredients) => setFormData({ ...formData, ingredients })}
+          fieldConfig={ingredientsConfig}
+          title="Ingredients"
+        />
+        <FormArrayField
+          items={formData.addons}
+          onChange={(addons) => setFormData({ ...formData, addons })}
+          fieldConfig={addonsConfig}
+          title="Addons"
+        />
 
         {/* Form Actions */}
         <div className="flex justify-end gap-4">
