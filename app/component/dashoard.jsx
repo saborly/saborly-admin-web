@@ -41,12 +41,10 @@ import {
   LocationEdit,
 } from 'lucide-react';
 import { useRouter } from "next/navigation";
-import { useSearchParams } from 'next/navigation'; // For Next.js, or use equivalent for your framework
-import { useDebounce } from 'use-debounce'; // npm install use-debounce
+import { useSearchParams } from 'next/navigation';
+import { useDebounce } from 'use-debounce';
+import { useRef } from 'react';
 
-// Add these imports to your RestaurantAdminDashboard component
-import { useAdminNotifications } from '../../hooks/useAdminNotifications';
-import NotificationBell from './notification';
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
 
@@ -70,7 +68,7 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
-        'Accept-Language': this.language, // Add language header
+        'Accept-Language': this.language,
         ...options.headers,
       },
       ...options,
@@ -139,7 +137,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
-  // Inside ApiService class
+
   async getDeliverySettings() {
     return this.request('/settings/delivery');
   }
@@ -157,10 +155,12 @@ class ApiService {
       body: JSON.stringify({ isEnabled: enabled, disabledMessage }),
     });
   }
+
   async getCategories(params = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/categories${query ? `?${query}` : ''}`);
   }
+
   async getBanners(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/banners/getall${queryString ? `?${queryString}` : ''}`);
@@ -204,12 +204,12 @@ class ApiService {
   }
 
   async deleteCategory(id) {
-    console.log('Deleting category with IDssss:', id);
+    console.log('Deleting category with ID:', id);
     return this.request(`/categories/${id}`, {
       method: 'DELETE',
     });
   }
-  // Offers API
+
   // Offers API
   async getOffers(params = {}) {
     const queryString = new URLSearchParams(params).toString();
@@ -219,6 +219,7 @@ class ApiService {
   async getItemsWithOffers() {
     return this.request('/offer/items-with-offers');
   }
+
   getLocalized(lang) {
     return {
       ...this,
@@ -226,6 +227,7 @@ class ApiService {
       description: this.description && typeof this.description === 'object' ? this.description[lang] || this.description.en || 'No description' : 'No description',
     };
   }
+
   async createOffer(data) {
     return this.request('/offer', {
       method: 'POST',
@@ -285,7 +287,7 @@ class ApiService {
   }
 
   async deleteFoodItem(id) {
-    console.log("checking", id)
+    console.log("Deleting food item:", id)
     return this.request(`/food-items/${id}`, {
       method: 'DELETE',
     });
@@ -297,7 +299,6 @@ class ApiService {
       body: JSON.stringify({ quantity, operation }),
     });
   }
-
 
   // Orders API
   async getOrders(params = {}) {
@@ -469,7 +470,7 @@ const ImageUpload = ({ value, onChange, className = "", multiple = false, id }) 
             multiple={multiple}
             onChange={handleFileChange}
             className="hidden"
-            id={id} // Use unique ID
+            id={id}
             disabled={uploading}
           />
           <label
@@ -547,33 +548,45 @@ const ImageUpload = ({ value, onChange, className = "", multiple = false, id }) 
     </div>
   );
 };
-const Pagination = ({ pagination, onPageChange }) => {
-  const { currentPage, totalPages } = pagination;
 
-  if (totalPages <= 1) return null; // Optionally hide for single page
+// Fixed SearchInput Component
+const SearchInput = React.memo(({ placeholder, value, onChange, className = "" }) => {
+  const inputRef = useRef(null);
+
+  const handleClear = useCallback(() => {
+    onChange('');
+    inputRef.current?.focus();
+  }, [onChange]);
+
+  const handleChange = useCallback((e) => {
+    onChange(e.target.value);
+  }, [onChange]);
 
   return (
-    <div className="flex justify-center items-center gap-2 mt-4">
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="px-3 py-2 bg-gray-100 rounded-lg disabled:opacity-50"
-      >
-        Previous
-      </button>
-      <span className="text-sm font-medium">
-        Page {currentPage} of {totalPages}
-      </span>
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="px-3 py-2 bg-gray-100 rounded-lg disabled:opacity-50"
-      >
-        Next
-      </button>
+    <div className="relative">
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
+        className={`w-full pl-12 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${className}`}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
-};
+});
+
+SearchInput.displayName = 'SearchInput';
 
 // Dynamic Form Array Component
 const FormArrayField = ({ items, onChange, fieldConfig, title }) => {
@@ -708,48 +721,29 @@ const RestaurantAdminDashboard = () => {
   const [foodItems, setFoodItems] = useState([]);
   const [offers, setOffers] = useState([]);
   const [orders, setOrders] = useState([]);
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-const [searchTerm, setSearchTerm] = useState('');
-const [debouncedSearchTerm] = useDebounce(searchTerm, 500); // 50
-// ──────────────────────────────────────────────────────────────
-//  Reset every pagination state to page 1
-// ──────────────────────────────────────────────────────────────
-const resetAllPaginations = () => {
-  setPagination({ currentPage: 1, totalPages: 1, totalOffers: 0 });
-  setOrderPagination({ currentPage: 1, totalPages: 1, totalOrders: 0 });
-  setFoodItemsPagination({ currentPage: 1, totalPages: 1, totalItems: 0 });
-};
-useEffect(() => {
-  // 1. New search term (even empty)
-  resetAllPaginations();
-  loadData();               // ← will use `debouncedSearchTerm` (see loaders below)
-}, [debouncedSearchTerm]);
+  // Fixed search states - only for menu-items and orders
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
+  const [isSearching, setIsSearching] = useState(false);
 
-useEffect(() => {
-  // 2. Tab switch
-  setSearchTerm('');        // clear the input box
-  resetAllPaginations();
-  loadData();               // fresh load for the new tab
-}, [activeTab]);
-
-useEffect(() => {
-  // If the user clears the field manually, keep the debounced value in sync
-  if (searchTerm === '' && debouncedSearchTerm !== '') {
-    // debounced value will become '' on the next debounce cycle – nothing to do
-  }
-}, [searchTerm, debouncedSearchTerm]);
-
-  const {
-    fcmToken,
-    notification,
-    permissionStatus,
-    initializeNotifications,
-    requestPermission,
-    clearNotification,
-    deleteFCMToken
-  } = useAdminNotifications(apiService);
-
+  // Pagination states
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalOffers: 0,
+  });
+  const [orderPagination, setOrderPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalOrders: 0,
+  });
+  const [foodItemsPagination, setFoodItemsPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+  });
 
   const [settings, setSettings] = useState({
     restaurantName: 'Delicious Bites Restaurant',
@@ -768,21 +762,82 @@ useEffect(() => {
       disabledMessage: 'Delivery service is temporarily unavailable. Please choose pickup.',
     },
   });
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalOffers: 0,
-  });
-  const [orderPagination, setOrderPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalOrders: 0,
-  });
+
+  const router = useRouter();
+
+  // Search effect - only trigger for menu-items and orders
   useEffect(() => {
-    if (activeTab === 'menu-items') {
-      Promise.all([loadCategories(), loadFoodItems()]).then(() => loadOffers());
-    }
+    const loadDataWithSearch = async () => {
+      if (!['menu-items', 'orders'].includes(activeTab)) {
+        return;
+      }
+
+      setIsSearching(true);
+      const params = { 
+        page: 1, 
+        search: debouncedSearchTerm || '',
+        limit: 10 
+      };
+
+      try {
+        switch (activeTab) {
+          case 'menu-items':
+            await loadFoodItems(params);
+            break;
+          case 'orders':
+            await loadOrders(params);
+            break;
+          default:
+            break;
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    loadDataWithSearch();
+  }, [debouncedSearchTerm, activeTab]);
+
+  // Clear search when switching tabs
+  useEffect(() => {
+    setSearchTerm('');
   }, [activeTab]);
+
+  // Load data when tab changes
+  useEffect(() => {
+    const loadDataForTab = async () => {
+      switch (activeTab) {
+        case 'dashboard':
+          await loadDashboardData();
+          break;
+        case 'menu-items':
+          await loadFoodItems({ page: 1, limit: 10, search: searchTerm });
+          break;
+        case 'orders':
+          await loadOrders({ page: 1, limit: 10, search: searchTerm });
+          break;
+        case 'categories':
+          await loadCategories();
+          break;
+        case 'banners':
+          await loadBanners();
+          break;
+        case 'offers':
+          await loadOffers({ page: 1, limit: 10 });
+          break;
+        case 'settings':
+          await loadSettings();
+          break;
+        default:
+          break;
+      }
+    };
+
+    loadDataForTab();
+  }, [activeTab]);
+
   const loadOfferStats = async () => {
     try {
       const response = await apiService.getOffers();
@@ -798,53 +853,6 @@ useEffect(() => {
   useEffect(() => {
     loadOfferStats();
   }, []);
-useEffect(() => {
-  if (debouncedSearchTerm !== undefined) {
-    loadData();
-  }
-}, 
-
-[debouncedSearchTerm, activeTab]);
-
-useEffect(() => {
-  setSearchTerm(''); // Clear search when tab changes
-}, [activeTab]);
-  useEffect(() => {
-    loadData();
-  }, [activeTab]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      switch (activeTab) {
-        case 'dashboard':
-          await loadDashboardData();
-          break;
-        case 'categories':
-          await loadCategories();
-          break;
-        case 'menu-items':
-          await loadFoodItems();
-          break;
-        case 'offers':
-          await loadOffers();
-          break;
-        case 'banners':
-          await loadBanners();
-          break;
-        case 'orders':
-          await loadOrders();
-          break;
-        case 'settings':
-          await loadSettings();
-          break;
-      }
-    } catch (error) {
-      showNotificationDialog('Error', 'Error loading data: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadDashboardData = async () => {
     try {
@@ -856,7 +864,6 @@ useEffect(() => {
         apiService.getOffers({ limit: 5 }).catch(() => ({ offers: [] })),
       ]);
 
-
       setDashboardStats({
         revenue: { current: statsResponse.stats?.totalRevenue || 45250.75, growth: 15.3, period: 'month' },
         orders: { current: statsResponse.stats?.totalOrders || 2847, growth: 12.8, period: 'week' },
@@ -864,13 +871,14 @@ useEffect(() => {
         menuItems: { current: itemsResponse.count || 68, growth: 5.2, period: 'month' },
         activeOffers: { current: offersResponse.totalOffers || 0, growth: 10, period: 'month' },
       });
-      console.log("statsResponse", statsResponse)
+      
       setOrders(ordersResponse.orders || []);
       setOffers(offersResponse.offers || []);
     } catch (error) {
       console.error('Dashboard data error:', error);
     }
   };
+
   const getLocalized = (category, lang) => ({
     ...category,
     name: category.name
@@ -885,151 +893,130 @@ useEffect(() => {
       : 'No description',
   });
 
-  const loadCategories = async () => {
-    try {
-    const response = await apiService.getCategories({ search: debouncedSearchTerm });
-      console.log('Raw categories response:', response);
+const loadCategories = async (params = {}) => {
+  try {
+    const response = await apiService.getCategories(params);
+    console.log('Raw categories response:', response);
+    const categories = Array.isArray(response.categories) ? response.categories : [];
+    setCategories(categories);
+  } catch (error) {
+    console.error('Error loading categories:', error);
+    showNotificationDialog('Error', 'Error loading categories: ' + error.message, 'error');
+  }
+};
 
-      // Store raw categories with _multilingual data
-      const categories = Array.isArray(response.categories) ? response.categories : [];
-      setCategories(categories);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      showNotificationDialog('Error', 'Error loading categories: ' + error.message, 'error');
+const loadBanners = async (params = {}) => {
+  const response = await apiService.getBanners(params);
+  setBanners(response.data || []);
+};
+const getLocalizedFoodItem = (item, lang) => ({
+  ...item,
+  name:
+    typeof item.name === 'object' && item.name
+      ? item.name[lang] || item.name.en || item.name.fr || Object.values(item.name)[0] || 'Unnamed' // Added French fallback
+      : item.name || 'Unnamed',
+  description:
+    typeof item.description === 'object' && item.description
+      ? item.description[lang] || item.description.en || item.description.fr || Object.values(item.description)[0] || 'No description' // Added French fallback
+      : item.description || 'No description',
+  category: item.category
+    ? {
+      ...item.category,
+      name:
+        typeof item.category.name === 'object' && item.category.name
+          ? item.category.name[lang] || item.category.name.en || item.category.name.fr || Object.values(item.category.name)[0] || 'No category' // Added French fallback
+          : item.category.name || 'No category',
     }
-  };
-  const getLocalizedFoodItem = (item, lang) => ({
-    ...item,
-    name:
-      typeof item.name === 'object' && item.name
-        ? item.name[lang] || item.name.en || Object.values(item.name)[0] || 'Unnamed'
-        : item.name || 'Unnamed',
-    description:
-      typeof item.description === 'object' && item.description
-        ? item.description[lang] || item.description.en || Object.values(item.description)[0] || 'No description'
-        : item.description || 'No description',
-    category: item.category
-      ? {
-        ...item.category,
-        name:
-          typeof item.category.name === 'object' && item.category.name
-            ? item.category.name[lang] || item.category.name.en || Object.values(item.category.name)[0] || 'No category'
-            : item.category.name || 'No category',
-      }
-      : null,
-  });
-  const loadFoodItems = async (params = {}) => {
-    setLoading(true);
-    try {
-      const queryParams = {
-        page: params.page || foodItemsPagination.currentPage,
-        limit: params.limit || 10,
-      search: debouncedSearchTerm, // ← Add this
-        includeInactive: true,
-        lang: apiService.language,
-      };
-      const response = await apiService.getFoodItems(queryParams);
-      console.log('Raw Food Items Response:', response);
+    : null,
+});
 
-      // Transform food items to ensure name is a localized string
-      const localizedItems = Array.isArray(response.items)
-        ? response.items.map(item => ({
-          ...item,
-          name: item._multilingual?.name?.[apiService.language] ||
-            item._multilingual?.name?.en ||
-            Object.values(item._multilingual?.name || {})[0] ||
-            item.name ||
-            'Unnamed',
-          description: item._multilingual?.description?.[apiService.language] ||
-            item._multilingual?.description?.en ||
-            Object.values(item._multilingual?.description || {})[0] ||
-            item.description ||
-            'No description',
-          // Preserve the category data as well
-          category: item.category ? {
-            ...item.category,
-            name: item.category._multilingual?.name?.[apiService.language] ||
-              item.category._multilingual?.name?.en ||
-              item.category.name ||
-              'No category'
-          } : null,
-        }))
-        : [];
-      setFoodItems(localizedItems);
-      setFoodItemsPagination({
-        currentPage: response.currentPage || 1,
-        totalPages: response.totalPages || Math.ceil(response.totalItems / (queryParams.limit || 10)),
-        totalItems: response.totalItems || response.count,
-      });
-    } catch (error) {
-      console.error('Error loading food items:', error);
-      showNotificationDialog('Error', 'Error loading menu items: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  const getSafeName = (name, language) => {
-    if (typeof name === 'string') return name;
-    if (name && typeof name === 'object') {
-      return name[language] || name.en || Object.values(name)[0] || 'Unnamed';
-    }
-    return 'Unnamed';
-  };
-  const loadOffers = async (params = {}) => {
-    setLoading(true);
-    try {
-      // Ensure only valid parameters are sent
-      const queryParams = {
-        page: params.page || 1,
-        limit: params.limit || 20,
-      };
-      if (params.featured !== undefined && params.featured !== null) {
-        queryParams.featured = params.featured;
-      }
-      if (params.type) {
-        queryParams.type = params.type;
-      }
-
-      const response = await apiService.getOffers(queryParams);
-      setOffers(response.offers || []);
-      setPagination({
-        currentPage: response.currentPage,
-        totalPages: response.totalPages,
-        totalOffers: response.totalOffers,
-      });
-    } catch (error) {
-      showNotificationDialog('Error', 'Error loading offers: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-  const loadBanners = async (params = {}) => {
-  const response = await apiService.getBanners({
-    ...params,
-    search: debouncedSearchTerm
-  });    setBanners(response.data || []);
-  };
-  const loadOrders = async (params = {}) => {
-    setLoading(true);
-    try {
-        const queryParams = {
-      page: params.page || 1,
+const loadFoodItems = async (params = {}) => {
+  setLoading(true);
+  try {
+    const queryParams = {
+      page: params.page || foodItemsPagination.currentPage,
       limit: params.limit || 10,
-      search: debouncedSearchTerm, // ← Add this
+      search: params.search || '',
+      includeInactive: true,
+      lang: apiService.language,
     };
-      const response = await apiService.getOrders(queryParams);
-      setOrders(response.orders || []);
-      setOrderPagination({
-        currentPage: response.currentPage,
-        totalPages: response.totalPages,
-        totalOrders: response.totalOrders,
-      });
-    } catch (error) {
-      showNotificationDialog('Error', 'Error loading orders: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
+    
+    const response = await apiService.getFoodItems(queryParams);
+    setFoodItems(response.items || []);
+    setFoodItemsPagination({
+      currentPage: response.currentPage || 1,
+      totalPages: response.totalPages || 1,
+      totalItems: response.totalItems || 0,
+    });
+  } catch (error) {
+    console.error('Error loading food items:', error);
+    showNotificationDialog('Error', 'Error loading food items: ' + error.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const loadOrders = async (params = {}) => {
+  setLoading(true);
+  try {
+    const queryParams = {
+      page: params.page || orderPagination.currentPage,
+      limit: params.limit || 10,
+      search: params.search || '',
+    };
+    
+    const response = await apiService.getOrders(queryParams);
+    setOrders(response.orders || []);
+    setOrderPagination({
+      currentPage: response.currentPage,
+      totalPages: response.totalPages,
+      totalOrders: response.totalOrders,
+    });
+  } catch (error) {
+    console.error('Error loading orders:', error);
+    showNotificationDialog('Error', 'Error loading orders: ' + error.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const loadOffers = async (params = {}) => {
+  setLoading(true);
+  try {
+    const queryParams = {
+      page: params.page || 1,
+      limit: params.limit || 20,
+      search: params.search || '',
+    };
+    
+    if (params.featured !== undefined && params.featured !== null) {
+      queryParams.featured = params.featured;
     }
-  };
+    if (params.type) {
+      queryParams.type = params.type;
+    }
+
+    const response = await apiService.getOffers(queryParams);
+    setOffers(response.offers || []);
+    setPagination({
+      currentPage: response.currentPage,
+      totalPages: response.totalPages,
+      totalOffers: response.totalOffers,
+    });
+  } catch (error) {
+    showNotificationDialog('Error', 'Error loading offers: ' + error.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
+ const getSafeName = (name, language) => {
+  if (typeof name === 'string') return name;
+  if (name && typeof name === 'object') {
+    return name[language] || name.en || name.fr || Object.values(name)[0] || 'Unnamed'; // Added French fallback
+  }
+  return 'Unnamed';
+};
   const loadSettings = async () => {
     try {
       const response = await apiService.getSettings();
@@ -1057,7 +1044,7 @@ useEffect(() => {
 
   // Utility functions
   const formatCurrency = useCallback((amount, currency = 'EUR') => {
-    if (isNaN(amount)) return '€0.00'; // handle invalid input gracefully
+    if (isNaN(amount)) return '€0.00';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
@@ -1153,7 +1140,7 @@ useEffect(() => {
   };
 
   const handleDelete = async (id, type) => {
-    console.log('Deleting', type, 'with IDs:', id);
+    console.log('Deleting', type, 'with ID:', id);
     showConfirmDialog(
       'Confirm Deletion',
       `Are you sure you want to delete this ${type}? This action cannot be undone.`,
@@ -1161,9 +1148,8 @@ useEffect(() => {
         setLoading(true);
         try {
           switch (type) {
-            case 'categorie': // Fixed typo from 'categorie'
+            case 'category':
               await apiService.deleteCategory(id);
-              break;
               break;
             case 'menu item':
               await apiService.deleteFoodItem(id);
@@ -1199,14 +1185,42 @@ useEffect(() => {
       showNotificationDialog('Error', 'Error updating order status: ' + error.message, 'error');
     }
   };
-  const router = useRouter();
+
+  // Load data function
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      switch (activeTab) {
+        case 'dashboard':
+          await loadDashboardData();
+          break;
+        case 'categories':
+          await loadCategories();
+          break;
+        case 'menu-items':
+          await loadFoodItems();
+          break;
+        case 'offers':
+          await loadOffers();
+          break;
+        case 'banners':
+          await loadBanners();
+          break;
+        case 'orders':
+          await loadOrders();
+          break;
+        case 'settings':
+          await loadSettings();
+          break;
+      }
+    } catch (error) {
+      showNotificationDialog('Error', 'Error loading data: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Navigation items
-  const [foodItemsPagination, setFoodItemsPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-  });
   const navigationItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, gradient: 'from-blue-500 to-indigo-600' },
     { id: 'categories', name: 'Categories', icon: Grid3X3, gradient: 'from-emerald-500 to-teal-600' },
@@ -1217,29 +1231,6 @@ useEffect(() => {
     { id: 'banners', name: 'Banners', icon: ImageIcon, gradient: 'from-indigo-500 to-purple-600' },
     { id: 'settings', name: 'Settings', icon: Settings, gradient: 'from-gray-500 to-gray-700' },
   ];
-  useEffect(() => {
-    const handleMessage = (event) => {
-      if (event.data.type === 'NOTIFICATION_CLICK') {
-        const { type, orderId } = event.data.data;
-        if (type === 'new_order' && orderId) {
-          setActiveTab('orders');
-          router.push(`/admin?tab=orders&orderId=${orderId}`); // Optional: sync URL
-          setTimeout(() => {
-            const order = orders.find(o => o._id === orderId);
-            if (order) {
-              openModal('order-details', order);
-            } else {
-              showNotificationDialog('Error', 'Order not found', 'error');
-              loadOrders();
-            }
-          }, 500);
-        }
-      }
-    };
-
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [orders, router]);
 
   // Enhanced Dashboard Stats Component
   const DashboardStats = () => (
@@ -1295,7 +1286,6 @@ useEffect(() => {
           key={index}
           className={`relative p-8 rounded-3xl shadow-lg border-0 bg-gradient-to-br ${stat.bgGradient} hover:shadow-xl transition-all duration-300 hover:scale-[1.02] overflow-hidden`}
         >
-
           <div className="relative flex items-start justify-between">
             <div className="flex-1">
               <p className="text-sm font-semibold text-gray-600 mb-2">{stat.title}</p>
@@ -1341,7 +1331,6 @@ useEffect(() => {
   };
 
   // Enhanced Food Item Form
-  // Enhanced Food Item Form
   const FoodItemForm = ({ onClose }) => {
     const [apiService] = useState(new ApiService());
     const [categories, setCategories] = useState([]);
@@ -1352,32 +1341,34 @@ useEffect(() => {
       message: '',
       type: 'success',
     });
-    const router = useRouter();
 
     const showNotificationDialog = (title, message, type) => {
       setNotificationDialog({ isOpen: true, title, message, type });
     };
 
-    const languages = [
-      { code: 'en', label: 'English' },
-      { code: 'es', label: 'Spanish' },
-      { code: 'ca', label: 'Catalan' },
-      { code: 'ar', label: 'Arabic' },
-    ];
+  const languages = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'ca', label: 'Catalan' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'fr', label: 'French' }, // Added French
+];
 
     const [formData, setFormData] = useState({
-      name: editingItem?._multilingual?.name || {
-        en: editingItem?.name || '',
-        es: '',
-        ca: '',
-        ar: '',
-      },
-      description: editingItem?._multilingual?.description || {
-        en: editingItem?.description || '',
-        es: '',
-        ca: '',
-        ar: '',
-      },
+     name: editingItem?._multilingual?.name || {
+    en: editingItem?.name || '',
+    es: '',
+    ca: '',
+    ar: '',
+    fr: '', // Added French
+  },
+  description: editingItem?._multilingual?.description || {
+    en: editingItem?.description || '',
+    es: '',
+    ca: '',
+    ar: '',
+    fr: '', // Added French
+  },
       price: editingItem?.price || 0,
       originalPrice: editingItem?.originalPrice || 0,
       imageUrl: editingItem?.imageUrl || '',
@@ -1403,32 +1394,32 @@ useEffect(() => {
       availableFrom: editingItem?.availableFrom ? new Date(editingItem.availableFrom).toISOString().slice(0, 16) : '',
       availableUntil: editingItem?.availableUntil ? new Date(editingItem.availableUntil).toISOString().slice(0, 16) : '',
       mealSizes: editingItem?._multilingual?.mealSizes?.map(size => ({
-        name: size.name || { en: '', es: '', ca: '', ar: '' },
+        name: size.name || { en: '', es: '', ca: '', ar: '',fr:'' },
         additionalPrice: size.additionalPrice || 0,
       })) || editingItem?.mealSizes?.map(size => ({
-        name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '' },
+        name: typeof size.name === 'object' ? size.name : { en: size.name || '', es: '', ca: '', ar: '', fr: ''},
         additionalPrice: size.additionalPrice || 0,
       })) || [],
       extras: editingItem?._multilingual?.extras?.map(extra => ({
-        name: extra.name || { en: '', es: '', ca: '', ar: '' },
+        name: extra.name || { en: '', es: '', ca: '', ar: '', fr: '' },
         price: extra.price || 0,
       })) || editingItem?.extras?.map(extra => ({
-        name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '' },
+        name: typeof extra.name === 'object' ? extra.name : { en: extra.name || '', es: '', ca: '', ar: '', fr: '' },
         price: extra.price || 0,
       })) || [],
       addons: editingItem?._multilingual?.addons?.map(addon => ({
-        name: addon.name || { en: '', es: '', ca: '', ar: '' },
+        name: addon.name || { en: '', es: '', ca: '', ar: '', fr: '' },
         price: addon.price || 0,
         imageUrl: addon.imageUrl || '',
       })) || editingItem?.addons?.map(addon => ({
-        name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '' },
+        name: typeof addon.name === 'object' ? addon.name : { en: addon.name || '', es: '', ca: '', ar: '', fr: '' },
         price: addon.price || 0,
         imageUrl: addon.imageUrl || '',
       })) || [],
       ingredients: editingItem?._multilingual?.ingredients?.map(ingredient => ({
         name: ingredient.name || { en: '', es: '', ca: '', ar: '' },
       })) || editingItem?.ingredients?.map(ingredient => ({
-        name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '' },
+        name: typeof ingredient.name === 'object' ? ingredient.name : { en: ingredient.name || '', es: '', ca: '', ar: '', fr: '' },
       })) || [],
       allergens: editingItem?.allergens || [],
       nutrition: editingItem?.nutrition || {
@@ -1440,22 +1431,25 @@ useEffect(() => {
         sugar: 0,
         sodium: 0,
       },
-      seoData: {
-        metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || {
-          en: editingItem?.seoData?.metaTitle || '',
-          es: '',
-          ca: '',
-          ar: '',
-        },
-        metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
-          en: editingItem?.seoData?.metaDescription || '',
-          es: '',
-          ca: '',
-          ar: '',
-        },
-        keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
-      },
+  seoData: {
+    metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || {
+      en: editingItem?.seoData?.metaTitle || '',
+      es: '',
+      ca: '',
+      ar: '',
+      fr: '', // Added French
+    },
+    metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
+      en: editingItem?.seoData?.metaDescription || '',
+      es: '',
+      ca: '',
+      ar: '',
+      fr: '', // Added French
+    },
+    keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
+  },
     });
+
     useEffect(() => {
       const loadCategories = async () => {
         try {
@@ -1474,26 +1468,26 @@ useEffect(() => {
     const handleSubmit = async (e) => {
       e.preventDefault();
       try {
-        // Validate required fields
         if (!formData.name.en || !formData.description.en || !formData.category) {
           showNotificationDialog('Error', 'English name, description, and category are required.', 'error');
           return;
         }
 
-        // Build payload with proper multilingual structure
         const payload = {
-          name: {
-            en: formData.name.en || '',
-            es: formData.name.es || '',
-            ca: formData.name.ca || '',
-            ar: formData.name.ar || ''
-          },
-          description: {
-            en: formData.description.en || '',
-            es: formData.description.es || '',
-            ca: formData.description.ca || '',
-            ar: formData.description.ar || ''
-          },
+    name: {
+    en: formData.name.en || '',
+    es: formData.name.es || '',
+    ca: formData.name.ca || '',
+    ar: formData.name.ar || '',
+    fr: formData.name.fr || '' // Added French
+  },
+  description: {
+    en: formData.description.en || '',
+    es: formData.description.es || '',
+    ca: formData.description.ca || '',
+    ar: formData.description.ar || '',
+    fr: formData.description.fr || '' // Added French
+  },
           price: formData.price,
           originalPrice: formData.originalPrice,
           imageUrl: formData.imageUrl,
@@ -1521,7 +1515,8 @@ useEffect(() => {
             en: tag.trim(),
             es: tag.trim(),
             ca: tag.trim(),
-            ar: tag.trim()
+            ar: tag.trim(),
+            fr: tag.trim() // Added French
           })) : [],
           nutrition: formData.nutrition,
           allergens: formData.allergens,
@@ -1530,7 +1525,8 @@ useEffect(() => {
               en: size.name.en || '',
               es: size.name.es || '',
               ca: size.name.ca || '',
-              ar: size.name.ar || ''
+              ar: size.name.ar || '',
+              fr: size.name.fr || '' ,// Added French
             },
             additionalPrice: size.additionalPrice
           })),
@@ -1539,7 +1535,8 @@ useEffect(() => {
               en: extra.name.en || '',
               es: extra.name.es || '',
               ca: extra.name.ca || '',
-              ar: extra.name.ar || ''
+              ar: extra.name.ar || '',
+              fr: extra.name.fr || '' ,// Added French
             },
             price: extra.price
           })),
@@ -1548,7 +1545,8 @@ useEffect(() => {
               en: addon.name.en || '',
               es: addon.name.es || '',
               ca: addon.name.ca || '',
-              ar: addon.name.ar || ''
+              ar: addon.name.ar || '',
+              fr: addon.name.fr || '' ,// Added French
             },
             price: addon.price,
             imageUrl: addon.imageUrl
@@ -1558,29 +1556,33 @@ useEffect(() => {
               en: ingredient.name.en || '',
               es: ingredient.name.es || '',
               ca: ingredient.name.ca || '',
-              ar: ingredient.name.ar || ''
+              ar: ingredient.name.ar || '',
+              fr: ingredient.name.fr || '' ,// Added French
             }
           })),
-          seoData: {
-            metaTitle: {
-              en: formData.seoData.metaTitle.en || '',
-              es: formData.seoData.metaTitle.es || '',
-              ca: formData.seoData.metaTitle.ca || '',
-              ar: formData.seoData.metaTitle.ar || ''
-            },
-            metaDescription: {
-              en: formData.seoData.metaDescription.en || '',
-              es: formData.seoData.metaDescription.es || '',
-              ca: formData.seoData.metaDescription.ca || '',
-              ar: formData.seoData.metaDescription.ar || ''
-            },
-            keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({
-              en: k.trim(),
-              es: k.trim(),
-              ca: k.trim(),
-              ar: k.trim()
-            })) : []
-          }
+       seoData: {
+    metaTitle: {
+      en: formData.seoData.metaTitle.en || '',
+      es: formData.seoData.metaTitle.es || '',
+      ca: formData.seoData.metaTitle.ca || '',
+      ar: formData.seoData.metaTitle.ar || '',
+      fr: formData.seoData.metaTitle.fr || '' // Added French
+    },
+    metaDescription: {
+      en: formData.seoData.metaDescription.en || '',
+      es: formData.seoData.metaDescription.es || '',
+      ca: formData.seoData.metaDescription.ca || '',
+      ar: formData.seoData.metaDescription.ar || '',
+      fr: formData.seoData.metaDescription.fr || '' // Added French
+    },
+    keywords: formData.seoData.keywords ? formData.seoData.keywords.split(',').map(k => ({
+      en: k.trim(),
+      es: k.trim(),
+      ca: k.trim(),
+      ar: k.trim(),
+      fr: k.trim() // Added French
+    })) : []
+  }
         };
 
         if (editingItem) {
@@ -1591,76 +1593,12 @@ useEffect(() => {
           showNotificationDialog('Success', 'Item created successfully!', 'success');
         }
 
-        // Reload data and close modal
-
-
+        onClose();
+        loadData();
       } catch (error) {
         console.error('Submit error:', error);
         showNotificationDialog('Error', error.message || 'Failed to save item. Please try again.', 'error');
       }
-    };
-    const mealSizesConfig = {
-      defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
-        additionalPrice: 0,
-      }),
-      fields: [
-        ...languages.map(lang => ({
-          key: `name.${lang.code}`,
-          label: `Meal Size Name (${lang.label})`,
-          type: 'text',
-          placeholder: `e.g., Small, Medium, Large in ${lang.label}`,
-        })),
-        { key: 'additionalPrice', label: 'Additional Price', type: 'number', placeholder: 'e.g., 9.9' },
-      ],
-    };
-
-    const extrasConfig = {
-      defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
-        price: 0,
-      }),
-      fields: [
-        ...languages.map(lang => ({
-          key: `name.${lang.code}`,
-          label: `Extra Name (${lang.label})`,
-          type: 'text',
-          placeholder: `e.g., Extra Cheese, Extra Sauce in ${lang.label}`,
-        })),
-        { key: 'price', label: 'Price', type: 'number', placeholder: 'e.g., 2.5' },
-      ],
-    };
-
-    const ingredientsConfig = {
-      defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
-      }),
-      fields: [
-        ...languages.map(lang => ({
-          key: `name.${lang.code}`,
-          label: `Ingredient Name (${lang.label})`,
-          type: 'text',
-          placeholder: `e.g., Tomato, Cheese in ${lang.label}`,
-        })),
-      ],
-    };
-
-    const addonsConfig = {
-      defaultItem: () => ({
-        name: { en: '', es: '', ca: '', ar: '' },
-        price: 0,
-        imageUrl: '',
-      }),
-      fields: [
-        ...languages.map(lang => ({
-          key: `name.${lang.code}`,
-          label: `Addon Name (${lang.label})`,
-          type: 'text',
-          placeholder: `e.g., Coca-Cola, French Fries in ${lang.label}`,
-        })),
-        { key: 'price', label: 'Price', type: 'number', placeholder: 'e.g., 3.0' },
-        { key: 'imageUrl', label: 'Image', type: 'image' },
-      ],
     };
 
     return (
@@ -1745,6 +1683,8 @@ useEffect(() => {
             id="primary-image-upload"
           />
         </div>
+
+        {/* Pricing & Stock */}
         <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200">
           <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
             <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
@@ -1831,6 +1771,7 @@ useEffect(() => {
             </div>
           </div>
         </div>
+
         {/* SEO Data */}
         <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
           <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -1912,110 +1853,6 @@ useEffect(() => {
             />
           </div>
         </div>
- <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl border border-purple-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-            Food Properties & Status
-          </h4>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-            {[
-              { key: 'isVeg', label: 'Vegetarian', desc: 'Contains no meat' },
-              { key: 'isVegan', label: 'Vegan', desc: 'Plant-based only' },
-              { key: 'isGlutenFree', label: 'Gluten Free', desc: 'No gluten ingredients' },
-              { key: 'isNutFree', label: 'Nut Free', desc: 'Safe from nuts' },
-              { key: 'isFeatured', label: 'Featured Item', desc: 'Show on homepage' },
-              { key: 'isPopular', label: 'Popular', desc: 'Mark as popular choice' },
-              { key: 'isActive', label: 'Active', desc: 'Available for ordering' },
-              { key: 'isAvailable', label: 'Available', desc: 'Currently in stock' },
-            ].map(({ key, label, desc }) => (
-              <div key={key} className="bg-white p-4 rounded-xl border border-gray-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <input
-                    type="checkbox"
-                    id={key}
-                    checked={formData[key]}
-                    onChange={(e) => setFormData({ ...formData, [key]: e.target.checked })}
-                    className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <label htmlFor={key} className="text-sm font-semibold text-gray-800">
-                    {label}
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500 ml-8">{desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-800 mb-3">Spice Level</label>
-            <select
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white"
-              value={formData.spiceLevel}
-              onChange={(e) => setFormData({ ...formData, spiceLevel: e.target.value })}
-            >
-              <option value="none">None</option>
-              <option value="mild">Mild 🌶️</option>
-              <option value="medium">Medium 🌶️🌶️</option>
-              <option value="hot">Hot 🌶️🌶️🌶️</option>
-              <option value="very-hot">Very Hot 🌶️🌶️🌶️🌶️</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Availability Schedule */}
-        <div className="bg-gradient-to-br from-cyan-50 to-white p-6 rounded-2xl border border-cyan-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-            Availability Schedule
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Available From</label>
-              <input
-                type="datetime-local"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all bg-white"
-                value={formData.availableFrom}
-                onChange={(e) => setFormData({ ...formData, availableFrom: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Available Until</label>
-              <input
-                type="datetime-local"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all bg-white"
-                value={formData.availableUntil}
-                onChange={(e) => setFormData({ ...formData, availableUntil: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Array Fields */}
-        <FormArrayField
-          items={formData.mealSizes}
-          onChange={(mealSizes) => setFormData({ ...formData, mealSizes })}
-          fieldConfig={mealSizesConfig}
-          title="Meal Sizes"
-        />
-        <FormArrayField
-          items={formData.extras}
-          onChange={(extras) => setFormData({ ...formData, extras })}
-          fieldConfig={extrasConfig}
-          title="Extras"
-        />
-        <FormArrayField
-          items={formData.ingredients}
-          onChange={(ingredients) => setFormData({ ...formData, ingredients })}
-          fieldConfig={ingredientsConfig}
-          title="Ingredients"
-        />
-        <FormArrayField
-          items={formData.addons}
-          onChange={(addons) => setFormData({ ...formData, addons })}
-          fieldConfig={addonsConfig}
-          title="Addons"
-        />
 
         {/* Form Actions */}
         <div className="flex justify-end gap-4">
@@ -2048,20 +1885,21 @@ useEffect(() => {
   // Enhanced Category Form Component
   const CategoryForm = () => {
     const [formData, setFormData] = useState({
-      name: editingItem?._multilingual?.name || { en: '', es: '', ca: '', ar: '' },
-      description: editingItem?._multilingual?.description || { en: '', es: '', ca: '', ar: '' },
+    name: editingItem?._multilingual?.name || { en: '', es: '', ca: '', ar: '', fr: '' }, // Added French
+    description: editingItem?._multilingual?.description || { en: '', es: '', ca: '', ar: '', fr: '' }, // Added French
       imageUrl: editingItem?.imageUrl || '',
       icon: editingItem?.icon || '',
       isActive: editingItem?.isActive !== false,
       sortOrder: editingItem?.sortOrder || 0,
     });
 
-    const languages = [
-      { code: 'en', label: 'English' },
-      { code: 'es', label: 'Spanish' },
-      { code: 'ca', label: 'Catalan' },
-      { code: 'ar', label: 'Arabic' },
-    ];
+     const languages = [
+    { code: 'en', label: 'English' },
+    { code: 'es', label: 'Spanish' },
+    { code: 'ca', label: 'Catalan' },
+    { code: 'ar', label: 'Arabic' },
+    { code: 'fr', label: 'French' }, // Added French
+  ];
 
     const handleSubmit = (e) => {
       e.preventDefault();
@@ -2176,6 +2014,7 @@ useEffect(() => {
       </form>
     );
   };
+
   const BannerForm = () => {
     const [formData, setFormData] = useState({
       title: editingItem?.title || '',
@@ -2251,9 +2090,8 @@ useEffect(() => {
               <ImageUpload
                 value={formData.imageUrl}
                 onChange={(url) => setFormData({ ...formData, imageUrl: url })}
-                id={`banner-upload}`}  // UNIQUE ID
+                id={`banner-upload`}
               />
-
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-800 mb-3">Category</label>
@@ -2356,6 +2194,7 @@ useEffect(() => {
       </form>
     );
   };
+
   const OrderDetails = ({ order }) => {
     return (
       <div className="space-y-8">
@@ -2437,6 +2276,7 @@ useEffect(() => {
       </div>
     );
   };
+
   const SettingsForm = () => {
     const [formData, setFormData] = useState(settings);
     const [toggling, setToggling] = useState(false);
@@ -2727,43 +2567,90 @@ useEffect(() => {
     );
   };
 
-  // Enhanced Data Grid Component
-  const DataGrid = ({ data, title, columns, onEdit, onDelete, actions, onAdd, pagination, onPageChange }) => {
-    return (
-      <div className="space-y-6">
+  // Enhanced Data Grids Component with Fixed Search
+  const DataGrids = ({ data, columns, onEdit, onDelete, onAdd, title, actions, pagination, showSearch = false }) => {
+    const handleClearSearch = () => {
+      setSearchTerm('');
+      // Reload data without search
+      switch (activeTab) {
+        case 'menu-items':
+          loadFoodItems({ search: '' });
+          break;
+        case 'orders':
+          loadOrders({ search: '' });
+          break;
+      }
+    };
 
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-            <p className="text-sm text-gray-600 mt-1">Manage your {title.toLowerCase()}</p>
+    return (
+      <div className="bg-white rounded-3xl shadow-lg border-0 overflow-hidden">
+        <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+              <p className="text-sm text-gray-600 mt-1">Manage your {title.toLowerCase()}</p>
+            </div>
+            {onAdd && (
+              <button
+                onClick={() => onAdd()}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-700 hover:to-indigo-700 flex items-center gap-3 transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200 font-semibold"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Add {title.slice(0, -1)}</span>
+              </button>
+            )}
           </div>
-          {onAdd && (
-            <button
-              onClick={() => onAdd()}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-700 hover:to-indigo-700 flex items-center gap-3 transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200 font-semibold"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add {title.slice(0, -1)}</span>
-            </button>
+          
+          {/* Search Section - Only for menu-items and orders */}
+          {showSearch && (
+            <div className="flex items-center gap-4 mt-4">
+              <div className="relative flex-1 max-w-md">
+                <SearchInput
+                  placeholder={`Search ${title.toLowerCase()}...`}
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                />
+                {isSearching && (
+                  <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  </div>
+                )}
+              </div>
+              {searchTerm && (
+                <button 
+                  className="p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-2xl transition-all duration-200"
+                  onClick={handleClearSearch}
+                  title="Clear search"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
+        
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                {columns.map((col) => (
-                  <th key={col.header} className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+          <table className="w-full">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <tr>
+                {columns.map((col, index) => (
+                  <th
+                    key={index}
+                    className="px-8 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide"
+                  >
                     {col.header}
                   </th>
                 ))}
-                {actions.length > 0 && <th className="px-4 py-3 text-right">Actions</th>}
+                <th className="px-8 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wide">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {data.map((item) => (
-                <tr key={item._id} className="border-t border-gray-200">
-                  {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-4">
+            <tbody className="bg-white">
+              {data.map((item, index) => (
+                <tr key={item._id || item.id || index} className="border-b border-gray-50 hover:bg-gray-50 transition-all duration-200">
+                  {columns.map((col, colIndex) => (
+                    <td key={colIndex} className="px-8 py-6 text-sm text-gray-900">
                       {col.render ? col.render(item) : item[col.key]}
                     </td>
                   ))}
@@ -2801,168 +2688,69 @@ useEffect(() => {
               ))}
             </tbody>
           </table>
+          {pagination && pagination.totalPages > 1 && (
+            <div className="p-6 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing {data.length} of {pagination.totalOffers} {title.toLowerCase()}
+              </p>
+              <div className="flex items-center gap-4">
+                <button
+                  disabled={pagination.currentPage === 1}
+                  onClick={() => {
+                    switch (activeTab) {
+                      case 'menu-items':
+                        loadFoodItems({ page: pagination.currentPage - 1 });
+                        break;
+                      case 'orders':
+                        loadOrders({ page: pagination.currentPage - 1 });
+                        break;
+                      case 'offers':
+                        loadOffers({ page: pagination.currentPage - 1 });
+                        break;
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200"
+                >
+                  Previous
+                </button>
+                <span className="text-sm font-semibold text-gray-900">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </span>
+                <button
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  onClick={() => {
+                    switch (activeTab) {
+                      case 'menu-items':
+                        loadFoodItems({ page: pagination.currentPage + 1 });
+                        break;
+                      case 'orders':
+                        loadOrders({ page: pagination.currentPage + 1 });
+                        break;
+                      case 'offers':
+                        loadOffers({ page: pagination.currentPage + 1 });
+                        break;
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+          {data.length === 0 && (
+            <div className="text-center py-20 text-gray-500">
+              <div className="text-6xl mb-4">📦</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No {title.toLowerCase()} found</h3>
+              <p className="text-sm text-gray-500">
+                {searchTerm ? 'Try adjusting your search terms' : `Get started by creating your first ${title.toLowerCase().slice(0, -1)}.`}
+              </p>
+            </div>
+          )}
         </div>
-        {/* Pagination */}
-        {pagination && (
-          <div className="flex justify-center items-center gap-4 mt-4">
-            <button
-              onClick={() => onPageChange(pagination.currentPage - 1)}
-              disabled={pagination.currentPage === 1}
-              className="px-4 py-2 bg-gray-100 rounded-lg disabled:opacity-50 hover:bg-gray-200"
-            >
-              Previous
-            </button>
-            <span className="text-sm font-medium">
-              Page {pagination.currentPage} of {pagination.totalPages || 1}
-            </span>
-            <button
-              onClick={() => onPageChange(pagination.currentPage + 1)}
-              disabled={pagination.currentPage >= (pagination.totalPages || 1)}
-              className="px-4 py-2 bg-gray-100 rounded-lg disabled:opacity-50 hover:bg-gray-200"
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
     );
   };
-
-  const DataGrids = ({ data, columns, onEdit, onDelete, onAdd, title, actions }) => (
-    <div className="bg-white rounded-3xl shadow-lg border-0 overflow-hidden">
-      <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-            <p className="text-sm text-gray-600 mt-1">Manage your {title.toLowerCase()}</p>
-          </div>
-          {onAdd && (
-            <button
-              onClick={() => onAdd()}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-700 hover:to-indigo-700 flex items-center gap-3 transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200 font-semibold"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add {title.slice(0, -1)}</span>
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <button className="p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-2xl transition-all duration-200">
-            <Filter className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <tr>
-              {columns.map((col, index) => (
-                <th
-                  key={index}
-                  className="px-8 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide"
-                >
-                  {col.header}
-                </th>
-              ))}
-              <th className="px-8 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wide">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {data.filter(item => {
-              if (!searchTerm) return true;
-              const searchableFields = ['name', 'title', 'orderNumber', 'email'];
-              return searchableFields.some(field =>
-                item[field]?.toLowerCase().includes(searchTerm.toLowerCase())
-              );
-            }).map((item, index) => (
-              <tr key={item._id || item.id || index} className="border-b border-gray-50 hover:bg-gray-50 transition-all duration-200">
-                {columns.map((col, colIndex) => (
-                  <td key={colIndex} className="px-8 py-6 text-sm text-gray-900">
-                    {col.render ? col.render(item) : item[col.key]}
-                  </td>
-                ))}
-                <td className="px-8 py-6 text-right">
-                  <div className="flex items-center gap-2 justify-end">
-                    {actions && actions.map((action, actionIndex) => (
-                      <button
-                        key={actionIndex}
-                        onClick={() => action.onClick(item)}
-                        className={`p-2 rounded-xl hover:bg-${action.color}-50 transition-all duration-200 text-${action.color}-600 hover:text-${action.color}-900 hover:scale-110`}
-                        title={action.label}
-                      >
-                        <action.icon className="w-4 h-4" />
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => onEdit(item)}
-                      className="p-2 rounded-xl text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-all duration-200 hover:scale-110"
-                      title="Edit"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    {onDelete && (
-                      <button
-                        onClick={() => onDelete(item._id || item.id, title.toLowerCase().slice(0, -1))}
-                        className="p-2 rounded-xl text-red-600 hover:text-red-900 hover:bg-red-50 transition-all duration-200 hover:scale-110"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {pagination.totalPages > 1 && (
-          <div className="p-6 border-t border-gray-100 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Showing {data.length} of {pagination.totalOffers} offers
-            </p>
-            <div className="flex items-center gap-4">
-              <button
-                disabled={pagination.currentPage === 1}
-                onClick={() => loadOffers({ page: pagination.currentPage - 1 })}
-                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200"
-              >
-                Previous
-              </button>
-              <span className="text-sm font-semibold text-gray-900">
-                Page {pagination.currentPage} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.currentPage === pagination.totalPages}
-                onClick={() => loadOffers({ page: pagination.currentPage + 1 })}
-                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-        {data.length === 0 && (
-          <div className="text-center py-20 text-gray-500">
-            <div className="text-6xl mb-4">📦</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No {title.toLowerCase()} found</h3>
-            <p className="text-sm text-gray-500">Get started by creating your first {title.toLowerCase().slice(0, -1)}.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   // Render different content based on active tab
   const renderContent = () => {
@@ -3043,7 +2831,6 @@ useEffect(() => {
                   gradient: 'from-rose-500 to-pink-600',
                   action: () => setActiveTab('banners')
                 },
-
               ].map((action, index) => (
                 <div
                   key={index}
@@ -3068,6 +2855,7 @@ useEffect(() => {
             onEdit={(item) => openModal('banner', item)}
             onDelete={handleDelete}
             onAdd={() => openModal('banner')}
+            showSearch={false}
             columns={[
               {
                 header: 'Image',
@@ -3153,400 +2941,370 @@ useEffect(() => {
         );
       case 'categories':
         return (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Categories</h2>
-              <button
-                onClick={() => openModal('category')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium flex items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Add Category
-              </button>
-            </div>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search categories..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl"
-              />
-            </div>
-            {loading ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                <p className="text-sm text-gray-500 mt-2">Loading categories...</p>
-              </div>
-            ) : categories.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                <p className="text-sm">No categories found.</p>
-              </div>
-            ) : (
-              <DataGrids
-                data={categories}
-                title="Categories"
-                onEdit={(item) => openModal('category', item)}
-                onDelete={handleDelete}
-                onAdd={() => openModal('category')}
-                columns={[
-                  {
-                    header: 'Image',
-                    key: 'imageUrl',
-                    render: (item) => (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name || 'Unnamed'}
-                        className="w-16 h-16 object-cover rounded-xl"
-                      />
-                    ),
-                  },
-                  {
-                    header: 'Name',
-                    key: 'name',
-                    render: (item) => (
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {item.name || 'Unnamed'}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {item.description || 'No description'}
-                        </p>
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Icon',
-                    key: 'icon',
-                    render: (item) => <span className="text-2xl">{item.icon}</span>,
-                  },
-                  {
-                    header: 'Status',
-                    key: 'isActive',
-                    render: (item) => (
-                      <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-red-50 text-red-700 border-red-200'
-                          }`}
-                      >
-                        {item.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: 'Sort Order',
-                    key: 'sortOrder',
-                    render: (item) => item.sortOrder,
-                  },
-                ]}
-              />
-            )}
-          </div>
+          <DataGrids
+            data={categories}
+            title="Categories"
+            onEdit={(item) => openModal('category', item)}
+            onDelete={handleDelete}
+            onAdd={() => openModal('category')}
+            showSearch={false}
+            columns={[
+              {
+                header: 'Image',
+                key: 'imageUrl',
+                render: (item) => (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name || 'Unnamed'}
+                    className="w-16 h-16 object-cover rounded-xl"
+                  />
+                ),
+              },
+              {
+                header: 'Name',
+                key: 'name',
+                render: (item) => (
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {item.name || 'Unnamed'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {item.description || 'No description'}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Icon',
+                key: 'icon',
+                render: (item) => <span className="text-2xl">{item.icon}</span>,
+              },
+              {
+                header: 'Status',
+                key: 'isActive',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                  >
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Sort Order',
+                key: 'sortOrder',
+                render: (item) => item.sortOrder,
+              },
+            ]}
+          />
         );
       case 'menu-items':
         return (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Menu Items</h2>
-              <button
-                onClick={() => openModal('menu-item')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium flex items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Add Item
-              </button>
-            </div>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search menu items..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl"
-              />
-            </div>
-            {loading ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                <p className="text-sm text-gray-500 mt-2">Loading menu items...</p>
-              </div>
-            ) : foodItems.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                <p className="text-sm">No menu items found.</p>
-              </div>
-            ) : (
-              <DataGrid
-                data={foodItems}
-                title="Menu Items"
-                onEdit={(item) => openModal('menu-item', item)}
-                onDelete={(item) => handleDelete(item, 'food-item')}
-                pagination={foodItemsPagination}
-                onPageChange={(page) => loadFoodItems({ page })}
-                columns={[
-                  {
-                    header: 'Image',
-                    key: 'imageUrl',
-                    render: (item) => (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name || 'Unnamed'}
-                        className="w-16 h-16 object-cover rounded-xl"
-                      />
-                    ),
-                  },
-                  {
-                    header: 'Name',
-                    key: 'name',
-                    render: (item) => (
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {getSafeName(item._multilingual?.name || item.name, apiService.language)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {getSafeName(item.category?._multilingual?.name || item.category?.name, apiService.language)}
-                        </p>
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Price',
-                    key: 'price',
-                    render: (item) => formatCurrency(item.price),
-                  },
-                  {
-                    header: 'Stock',
-                    key: 'stockQuantity',
-                    render: (item) => (
-                      <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.stockQuantity > item.lowStockAlert
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-red-50 text-red-700 border-red-200'
-                          }`}
-                      >
-                        {item.stockQuantity || 0}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: 'Status',
-                    key: 'status',
-                    render: (item) => (
-                      <div className="flex flex-col gap-2">
-                        <span
-                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-red-50 text-red-700 border-red-200'
-                            }`}
-                        >
-                          {item.isActive ? 'Active' : 'Inactive'}
+          <DataGrids
+            data={foodItems}
+            title="Menu Items"
+            onEdit={(item) => openModal('menu-item', item)}
+            onDelete={(id) => handleDelete(id, 'food-item')}
+            onAdd={() => openModal('menu-item')}
+            showSearch={true}
+            pagination={foodItemsPagination}
+            columns={[
+              {
+                header: 'Image',
+                key: 'imageUrl',
+                render: (item) => (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name || 'Unnamed'}
+                    className="w-16 h-16 object-cover rounded-xl"
+                  />
+                ),
+              },
+              {
+                header: 'Name',
+                key: 'name',
+                render: (item) => (
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {getSafeName(item._multilingual?.name || item.name, apiService.language)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {getSafeName(item.category?._multilingual?.name || item.category?.name, apiService.language)}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Price',
+                key: 'price',
+                render: (item) => formatCurrency(item.price),
+              },
+              {
+                header: 'Stock',
+                key: 'stockQuantity',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.stockQuantity > item.lowStockAlert
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                  >
+                    {item.stockQuantity || 0}
+                  </span>
+                ),
+              },
+              {
+                header: 'Status',
+                key: 'status',
+                render: (item) => (
+                  <div className="flex flex-col gap-2">
+                    <span
+                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-red-50 text-red-700 border-red-200'
+                        }`}
+                    >
+                      {item.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <div className="flex gap-1">
+                      {item.isFeatured && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                          <Star className="w-3 h-3 mr-1" />
+                          Featured
                         </span>
-                        <div className="flex gap-1">
-                          {item.isFeatured && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
-                              <Star className="w-3 h-3 mr-1" />
-                              Featured
-                            </span>
-                          )}
-                          {item.isPopular && (
-                            <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                              Popular
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ),
-                  },
-                ]}
-                actions={[
-
-                ]}
-              />
-            )}
-          </div>
+                      )}
+                      {item.isPopular && (
+                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                          Popular
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ),
+              },
+            ]}
+            actions={[]}
+          />
         );
 
       case 'orders':
         return (
-          <div>
-            <div className="mb-4">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search orders..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl"
-              />
-            </div>
-            {loading ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                <p className="text-sm text-gray-500 mt-2">Loading orders...</p>
-              </div>
-            ) : orders.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-                <p className="text-sm">No orders found.</p>
-              </div>
-            ) : (
-              <DataGrid
-                data={orders}
-                title="Orders"
-                onEdit={(item) => openModal('order-details', item)}
-                onDelete={() => { }}
-                pagination={orderPagination}
-                onPageChange={(page) => loadOrders({ page })}
-                columns={[
-                  {
-                    header: 'Order #',
-                    key: 'orderNumber',
-                    render: (item) => (
+          <DataGrids
+            data={orders}
+            title="Orders"
+            onEdit={(item) => openModal('order-details', item)}
+            onDelete={() => { }}
+            showSearch={true}
+            pagination={orderPagination}
+            columns={[
+              {
+                header: 'Order #',
+                key: 'orderNumber',
+                render: (item) => (
+                  <div>
+                    <p className="font-bold text-gray-900">{item.orderNumber || `#${item._id?.slice(-6)}`}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(item.createdAt)}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Customer',
+                key: 'userId',
+                render: (item) => (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{item.userId?.fullName || item.customerName || 'Unknown'}</p>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                header: 'Address',
+                key: 'userId',
+                render: (item) => (
+                  item.deliveryType === 'delivery' ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <LocationEdit className="w-5 h-5 text-blue-600" />
+                      </div>
                       <div>
-                        <p className="font-bold text-gray-900">{item.orderNumber || `#${item._id?.slice(-6)}`}</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatDate(item.createdAt)}
-                        </p>
+                        <p className="font-semibold text-gray-900">{item.deliveryAddress.address},<br />{item.deliveryAddress.apartment}</p>
                       </div>
-                    ),
-                  },
-                  {
-                    header: 'Customer',
-                    key: 'userId',
-                    render: (item) => (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Users className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{item.userId?.fullName || item.customerName || 'Unknown'}</p>
-                        </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <LocationEdit className="w-5 h-5 text-blue-600" />
                       </div>
-                    ),
-                  },
-                  {
-                    header: 'Address',
-                    key: 'userId',
-                    render: (item) => (
-                      item.deliveryType === 'delivery' ? (
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <LocationEdit className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">{item.deliveryAddress.address},<br />{item.deliveryAddress.apartment}</p>
-                          </div>
-                        </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{item.deliveryType}</p>
+                      </div>
+                    </div>
+                  )
+                ),
+              },
+              {
+                header: 'Phone',
+                key: 'userId',
+                render: (item) => (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <PhoneCallIcon className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      {item.userId?.phone || item.customerName ? (
+                        <a
+                          href={`tel:${item.userId?.phone || ''}`}
+                          className="font-semibold text-gray-900 hover:text-blue-600"
+                        >
+                          {item.userId?.phone || item.customerName}
+                        </a>
                       ) : (
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <LocationEdit className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">{item.deliveryType}</p>
-                          </div>
-                        </div>
-                      )
-                    ),
-                  },
-                  {
-                    header: 'Phone',
-                    key: 'userId',
-                    render: (item) => (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <PhoneCallIcon className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          {item.userId?.phone || item.customerName ? (
-                            <a
-                              href={`tel:${item.userId?.phone || ''}`}
-                              className="font-semibold text-gray-900 hover:text-blue-600"
-                            >
-                              {item.userId?.phone || item.customerName}
-                            </a>
-                          ) : (
-                            <p className="font-semibold text-gray-900">Unknown</p>
-                          )}
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Items',
-                    key: 'items',
-                    render: (item) => (
-                      <div className="max-w-xs">
-                        <p className="text-sm text-gray-900 font-medium">
-                          {item.items?.slice(0, 2).map((orderItem) => (
-                            typeof orderItem.foodItem?.name === 'object' && orderItem.foodItem?.name
-                              ? orderItem.foodItem.name[apiService.language] || orderItem.foodItem.name.en || Object.values(orderItem.foodItem.name)[0] || 'Unknown Item'
-                              : orderItem.foodItem?.name || 'Unknown Item'
-                          )).join(', ')}
-                          {item.items?.length > 2 && <span className="text-gray-500"> +{item.items.length - 2} more</span>}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">{item.items?.length || 0} items total</p>
-                        {item.items?.some(orderItem => orderItem.specialInstructions) && (
-                          <p className="text-xs text-gray-500">
-                            Special Instruction: {item.items.slice(0, 2).map((orderItem) => orderItem.specialInstructions || 'None').join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Total',
-                    key: 'total',
-                    render: (item) => (
-                      <div>
-                        <p className="font-bold text-lg text-gray-900">
-                          {formatCurrency(item.total)}
-                        </p>
-                        {item.deliveryType === 'delivery' && (
-                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <MapPin className="w-3 h-3" />
-                            Delivery fee included ({formatCurrency(item.deliveryFee)})
-                          </p>
-                        )}
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Status',
-                    key: 'status',
-                    render: (item) => (
-                      <select
-                        className={`text-xs font-semibold rounded-xl px-3 py-2 border-0 cursor-pointer transition-all hover:shadow-md ${getStatusColor(item.status)}`}
-                        value={item.status}
-                        onChange={(e) => handleOrderStatusUpdate(item._id, e.target.value)}
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="preparing">Preparing</option>
-                        <option value="ready">Ready</option>
-                        <option value="out-for-delivery">Out for Delivery</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    ),
-                  },
-                ]}
-                actions={[
-                  {
-                    icon: Eye,
-                    label: 'View Details',
-                    color: 'blue',
-                    onClick: (item) => openModal('order-details', item),
-                  },
-                ]}
-              />
-            )}
-          </div>
+                        <p className="font-semibold text-gray-900">Unknown</p>
+                      )}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                header: 'Items',
+                key: 'items',
+                render: (item) => (
+                  <div className="max-w-xs">
+                    <p className="text-sm text-gray-900 font-medium">
+                      {item.items?.slice(0, 2).map((orderItem) => (
+                        typeof orderItem.foodItem?.name === 'object' && orderItem.foodItem?.name
+                          ? orderItem.foodItem.name[apiService.language] || orderItem.foodItem.name.en || Object.values(orderItem.foodItem.name)[0] || 'Unknown Item'
+                          : orderItem.foodItem?.name || 'Unknown Item'
+                      )).join(', ')}
+                      {item.items?.length > 2 && <span className="text-gray-500"> +{item.items.length - 2} more</span>}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{item.items?.length || 0} items total</p>
+                    {item.items?.some(orderItem => orderItem.specialInstructions) && (
+                      <p className="text-xs text-gray-500">
+                        Special Instruction: {item.items.slice(0, 2).map((orderItem) => orderItem.specialInstructions || 'None').join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                header: 'Total',
+                key: 'total',
+                render: (item) => (
+                  <div>
+                    <p className="font-bold text-lg text-gray-900">
+                      {formatCurrency(item.total)}
+                    </p>
+                    {item.deliveryType === 'delivery' && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3" />
+                        Delivery fee included ({formatCurrency(item.deliveryFee)})
+                      </p>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                header: 'Status',
+                key: 'status',
+                render: (item) => (
+                  <select
+                    className={`text-xs font-semibold rounded-xl px-3 py-2 border-0 cursor-pointer transition-all hover:shadow-md ${getStatusColor(item.status)}`}
+                    value={item.status}
+                    onChange={(e) => handleOrderStatusUpdate(item._id, e.target.value)}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="preparing">Preparing</option>
+                    <option value="ready">Ready</option>
+                    <option value="out-for-delivery">Out for Delivery</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                ),
+              },
+            ]}
+            actions={[
+              {
+                icon: Eye,
+                label: 'View Details',
+                color: 'blue',
+                onClick: (item) => openModal('order-details', item),
+              },
+            ]}
+          />
+        );
+
+      case 'offers':
+        return (
+          <DataGrids
+            data={offers}
+            title="Offers"
+            onEdit={(item) => openModal('offer', item)}
+            onDelete={handleDelete}
+            onAdd={() => openModal('offer')}
+            showSearch={false}
+            pagination={pagination}
+            columns={[
+              {
+                header: 'Title',
+                key: 'title',
+                render: (item) => (
+                  <div>
+                    <p className="font-semibold text-gray-900">{item.title}</p>
+                    <p className="text-xs text-gray-500">{item.description}</p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Discount',
+                key: 'discountValue',
+                render: (item) => (
+                  <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-semibold border border-amber-200">
+                    {item.discountType === 'percentage' ? `${item.discountValue}%` : formatCurrency(item.discountValue)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Status',
+                key: 'isActive',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                  >
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Valid Until',
+                key: 'validUntil',
+                render: (item) => (
+                  <div className="text-sm">
+                    <p className="text-gray-900">{item.validUntil ? formatDate(item.validUntil) : 'No expiry'}</p>
+                  </div>
+                ),
+              },
+            ]}
+          />
         );
 
       case 'settings':
         return (
           <SettingsForm />
-
         );
 
       default:
@@ -3558,10 +3316,9 @@ useEffect(() => {
   const getModalContent = () => {
     const modalConfigs = {
       category: { title: `${editingItem ? 'Edit' : 'Add'} Category`, component: <CategoryForm />, size: 'max-w-4xl' },
-      'menu-item': { title: `${editingItem ? 'Edit' : 'Add'} Menu Item`, component: <FoodItemForm />, size: 'max-w-6xl' },
+      'menu-item': { title: `${editingItem ? 'Edit' : 'Add'} Menu Item`, component: <FoodItemForm onClose={closeModal} />, size: 'max-w-6xl' },
       banner: { title: `${editingItem ? 'Edit' : 'Add'} Banner Item`, component: <BannerForm />, size: 'max-w-6xl' },
       'order-details': { title: 'Order Details', component: <OrderDetails order={editingItem} />, size: 'max-w-5xl' },
-
     };
     const config = modalConfigs[modalType];
     return config ? { title: config.title, component: config.component, size: config.size } : null;
@@ -3569,111 +3326,22 @@ useEffect(() => {
 
   const modalContent = getModalContent();
 
-
-  useEffect(() => {
-    const initNotifications = async () => {
-      try {
-        await initializeNotifications();
-        console.log('Notifications initialized for admin');
-      } catch (error) {
-        console.error('Failed to initialize notifications:', error);
-      }
-    };
-
-    initNotifications();
-
-    // Cleanup on unmount
-    return () => {
-      deleteFCMToken();
-    };
-  }, []);
-
-  // Handle incoming notifications
-  useEffect(() => {
-    if (notification) {
-      console.log('New notification received:', notification);
-
-      // Handle different notification types
-      if (notification.data?.type === 'new_order') {
-        // Reload orders if on orders tab
-        if (activeTab === 'orders') {
-          loadOrders();
-        }
-
-        // Update dashboard stats
-        loadDashboardData();
-
-        // Show toast notification (you can add a toast library)
-        showNotificationDialog(
-          'New Order!',
-          `Order ${notification.data.orderNumber} has been placed`,
-          'success'
-        );
-      }
-    }
-  }, [notification, activeTab]);
-
-  // Handle notification clickconst {
-  const handleNotificationClick = (notif) => {
-    if (notif.data?.type === 'new_order' && notif.data?.orderId) {
-      // Navigate to orders tab
-      setActiveTab('orders');
-
-      // Optionally, open the order details modal
-      setTimeout(() => {
-        const order = orders.find(o => o._id === notif.data.orderId);
-        if (order) {
-          openModal('order-details', order);
-        }
-      }, 500);
-    }
-
-    clearNotification();
-  };
-
-  // Notification permission banner
-  const NotificationPermissionBanner = () => {
-    if (permissionStatus === 'granted' || permissionStatus === 'denied') {
-      return null;
-    }
-
-    return (
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4 mb-6 rounded-2xl shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Bell className="w-6 h-6" />
-            <div>
-              <p className="font-semibold">Enable Notifications</p>
-              <p className="text-sm text-blue-100">
-                Get instant alerts for new orders and updates
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={requestPermission}
-            className="bg-white text-blue-600 px-6 py-2 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
-          >
-            Enable
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   const handleLanguageChange = (lang) => {
     setSelectedLanguage(lang);
     apiService.setLanguage(lang);
-    loadData(); // Reload all data
-    loadCategories(); // Explicitly reload categories
-    loadFoodItems(); // Explicitly reload food items
+    loadData();
+    loadCategories();
+    loadFoodItems();
   };
 
-  const languages = [
-    { code: 'en', label: 'English' },
-    { code: 'es', label: 'Español' },
-    { code: 'ca', label: 'Català' },
-    { code: 'ar', label: 'العربية' },
-  ];
+const languages = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'ca', label: 'Català' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'fr', label: 'Français' }, // Added French
+];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
       <header className="bg-white shadow-xl border-b border-gray-100 sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
@@ -3699,14 +3367,6 @@ useEffect(() => {
                 </option>
               ))}
             </select>
-            <NotificationBell
-              notification={notification}
-              onClear={clearNotification}
-              onNotificationClick={handleNotificationClick}
-              fcmToken={fcmToken}
-              permissionStatus={permissionStatus}
-              requestPermission={requestPermission}
-            />
             <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-4 py-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
                 <span className="text-sm font-bold text-white">AD</span>
@@ -3758,8 +3418,6 @@ useEffect(() => {
           </div>
         </nav>
         <main className="flex-1 p-8 overflow-auto">
-          
-          <NotificationPermissionBanner />
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <div className="text-center">
@@ -3796,6 +3454,5 @@ useEffect(() => {
     </div>
   );
 };
-
 
 export default RestaurantAdminDashboard;
