@@ -1,40 +1,111 @@
-// components/OrdersSection.jsx
-import React from 'react';
-import { Eye, Calendar, Users, MapPin, PhoneCallIcon, LocationEdit } from 'lucide-react';
-import SearchInput from './SearchInput';
-import DataGrid from './DataGrid';
+'use client';
 
-const OrdersSection = ({ 
-  orders, 
-  loading, 
-  searchTerm, 
-  onSearchChange, 
-  onEdit, 
-  onStatusUpdate,
-  pagination,
-  onPageChange,
-  apiService 
-}) => {
-  const formatCurrency = (amount, currency = 'EUR') => {
-    if (isNaN(amount)) return '€0.00';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-    }).format(amount);
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useDebounce } from 'use-debounce';
+import { Loader2, Eye, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const SearchInput = React.memo(({ placeholder, value, onChange, onClear }) => {
+  const inputRef = useRef(null);
+  const handleClear = () => {
+    onChange('');
+    onClear?.();
+    inputRef.current?.focus();
   };
 
-  const formatDate = (dateString) => {
-    return new Intl.DateTimeFormat('en-US', {
+  return (
+    <div className="relative">
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <input
+        ref={inputRef}
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+});
+SearchInput.displayName = 'SearchInput';
+
+export const OrdersGrid = ({ onView, apiService, language = 'en' }) => {
+  const [orders, setOrders] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalOrders: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch] = useDebounce(searchTerm, 500);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const load = useCallback(
+    async (page = 1, search = debouncedSearch) => {
+      setLoading(true);
+      setIsSearching(search !== '');
+      try {
+        const res = await apiService.getOrders({ page, limit: 10, search });
+        setOrders(res.orders || []);
+        setPagination({
+          currentPage: res.currentPage || 1,
+          totalPages: res.totalPages || 1,
+          totalOrders: res.totalOrders || 0,
+        });
+      } catch (e) {
+        console.error('Orders load error:', e);
+      } finally {
+        setLoading(false);
+        setIsSearching(false);
+      }
+    },
+    [apiService, debouncedSearch]
+  );
+
+  // Initial load - only on mount
+  useEffect(() => {
+    load(1, '');
+  }, []); // Remove load from dependencies
+
+  // Debounced search effect
+  useEffect(() => {
+    if (debouncedSearch !== undefined) {
+      load(1, debouncedSearch);
+    }
+  }, [debouncedSearch, load]);
+
+  const handleClear = () => {
+    setSearchTerm('');
+    // Don't call load here - the useEffect will handle it
+  };
+
+  const handlePageChange = (newPage) => {
+    load(newPage, debouncedSearch);
+  };
+
+  const formatCurrency = (v) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(v || 0);
+
+  const formatDate = (d) =>
+    new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(dateString));
-  };
+    }).format(new Date(d));
 
-  const getStatusColor = (status) => {
-    const colors = {
+  const getStatusColor = (s) => {
+    const map = {
       pending: 'bg-amber-100 text-amber-800 border-amber-200',
       confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
       preparing: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -43,187 +114,157 @@ const OrdersSection = ({
       delivered: 'bg-gray-100 text-gray-800 border-gray-200',
       cancelled: 'bg-red-100 text-red-800 border-red-200',
     };
-    return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
+    return map[s] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  const getSafeName = (name, language) => {
-    if (typeof name === 'string') return name;
-    if (name && typeof name === 'object') {
-      return name[language] || name.en || Object.values(name)[0] || 'Unknown Item';
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await apiService.updateOrderStatus(orderId, newStatus, `Status → ${newStatus}`);
+      load(pagination.currentPage, debouncedSearch);
+    } catch (e) {
+      console.error(e);
     }
-    return 'Unknown Item';
   };
 
-  const columns = [
-    {
-      header: 'Order #',
-      key: 'orderNumber',
-      render: (item) => (
-        <div>
-          <p className="font-bold text-gray-900">{item.orderNumber || `#${item._id?.slice(-6)}`}</p>
-          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-            <Calendar className="w-3 h-3" />
-            {formatDate(item.createdAt)}
-          </p>
-        </div>
-      ),
-    },
-    {
-      header: 'Customer',
-      key: 'userId',
-      render: (item) => (
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <Users className="w-5 h-5 text-blue-600" />
-          </div>
+  const getCustomerName = (o) => o.customerName || o.userId?.firstName || 'Guest';
+  const getPhone = (o) => o.userId?.phone || '—';
+  const getAddress = (o) => {
+    if (o.deliveryType === 'pickup') return 'Pickup';
+    const a = o.deliveryAddress;
+    return a ? `${a.address}${a.apartment ? `, ${a.apartment}` : ''}` : '—';
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-lg border-0 overflow-hidden">
+      <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+        <div className="flex justify-between items-center mb-6">
           <div>
-            <p className="font-semibold text-gray-900">{item.userId?.fullName || item.customerName || 'Unknown'}</p>
+            <h2 className="text-2xl font-bold text-gray-900">Orders</h2>
+            <p className="text-sm text-gray-600 mt-1">All customer orders</p>
           </div>
         </div>
-      ),
-    },
-    {
-      header: 'Address',
-      key: 'deliveryType',
-      render: (item) => (
-        item.deliveryType === 'delivery' ? (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <LocationEdit className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">
-                {item.deliveryAddress?.address},<br />
-                {item.deliveryAddress?.apartment}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <LocationEdit className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">{item.deliveryType}</p>
-            </div>
-          </div>
-        )
-      ),
-    },
-    {
-      header: 'Phone',
-      key: 'phone',
-      render: (item) => (
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <PhoneCallIcon className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            {item.userId?.phone ? (
-              <a
-                href={`tel:${item.userId.phone}`}
-                className="font-semibold text-gray-900 hover:text-blue-600"
-              >
-                {item.userId.phone}
-              </a>
-            ) : (
-              <p className="font-semibold text-gray-900">Unknown</p>
+
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <SearchInput
+              placeholder="Search orders..."
+              value={searchTerm}
+              onChange={setSearchTerm}
+              onClear={handleClear}
+            />
+            {isSearching && (
+              <div className="absolute right-12 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              </div>
             )}
           </div>
         </div>
-      ),
-    },
-    {
-      header: 'Items',
-      key: 'items',
-      render: (item) => (
-        <div className="max-w-xs">
-          <p className="text-sm text-gray-900 font-medium">
-            {item.items?.slice(0, 2).map((orderItem) => 
-              getSafeName(orderItem.foodItem?.name, apiService.language)
-            ).join(', ')}
-            {item.items?.length > 2 && <span className="text-gray-500"> +{item.items.length - 2} more</span>}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">{item.items?.length || 0} items total</p>
-          {item.items?.some(orderItem => orderItem.specialInstructions) && (
-            <p className="text-xs text-gray-500">
-              Special Instructions available
-            </p>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Total',
-      key: 'total',
-      render: (item) => (
-        <div>
-          <p className="font-bold text-lg text-gray-900">
-            {formatCurrency(item.total)}
-          </p>
-          {item.deliveryType === 'delivery' && item.deliveryFee && (
-            <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-              <MapPin className="w-3 h-3" />
-              Delivery fee included ({formatCurrency(item.deliveryFee)})
-            </p>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Status',
-      key: 'status',
-      render: (item) => (
-        <select
-          className={`text-xs font-semibold rounded-xl px-3 py-2 border-0 cursor-pointer transition-all hover:shadow-md ${getStatusColor(item.status)}`}
-          value={item.status}
-          onChange={(e) => onStatusUpdate(item._id, e.target.value)}
-        >
-          <option value="pending">Pending</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="preparing">Preparing</option>
-          <option value="ready">Ready</option>
-          <option value="out-for-delivery">Out for Delivery</option>
-          <option value="delivered">Delivered</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      ),
-    },
-  ];
-
-  const actions = [
-    {
-      icon: Eye,
-      label: 'View Details',
-      color: 'blue',
-      onClick: (item) => onEdit('order-details', item),
-    },
-  ];
-
-  return (
-    <div>
-      <div className="mb-6">
-        <SearchInput
-          placeholder="Search orders by customer name, order number..."
-          value={searchTerm}
-          onChange={onSearchChange}
-        />
       </div>
 
-      <DataGrid
-        data={orders}
-        title="Orders"
-        columns={columns}
-        actions={actions}
-        loading={loading}
-        pagination={pagination}
-        onPageChange={onPageChange}
-        onEdit={onEdit}
-        searchTerm={searchTerm}
-        onSearchChange={onSearchChange}
-      />
-    </div>
-  );
-};
+      {loading && orders.length === 0 ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  {['Order #', 'Customer', 'Address', 'Phone', 'Items', 'Total', 'Status'].map((h) => (
+                    <th key={h} className="px-8 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide">
+                      {h}
+                    </th>
+                  ))}
+                  <th className="px-8 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wide">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {orders.map((o) => (
+                  <tr key={o._id} className="border-b border-gray-50 hover:bg-gray-50 transition-all duration-200">
+                    <td className="px-8 py-6 text-sm font-medium text-gray-900">
+                      #{o.orderNumber || o._id.slice(-6)}
+                    </td>
+                    <td className="px-8 py-6 text-sm text-gray-900">
+                      <div>
+                        <p className="font-semibold">{getCustomerName(o)}</p>
+                        <p className="text-xs text-gray-500">{formatDate(o.createdAt)}</p>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6 text-sm text-gray-700 max-w-xs truncate">{getAddress(o)}</td>
+                    <td className="px-8 py-6 text-sm text-gray-700">{getPhone(o)}</td>
+                    <td className="px-8 py-6 text-sm text-gray-700">
+                      {o.items?.length || 0} item{o.items?.length !== 1 ? 's' : ''}
+                    </td>
+                    <td className="px-8 py-6 text-sm font-semibold text-gray-900">{formatCurrency(o.total)}</td>
+                    <td className="px-8 py-6">
+                      <select
+                        value={o.status}
+                        onChange={(e) => handleStatusChange(o._id, e.target.value)}
+                        className={`text-xs font-semibold rounded-xl px-3 py-2 border cursor-pointer transition ${getStatusColor(o.status)}`}
+                      >
+                        {[
+                          'pending',
+                          'confirmed',
+                          'preparing',
+                          'ready',
+                          'out-for-delivery',
+                          'delivered',
+                          'cancelled',
+                        ].map((s) => (
+                          <option key={s} value={s}>
+                            {s.replace('-', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <button
+                        onClick={() => onView(o)}
+                        className="p-2 rounded-xl text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition"
+                        title="View"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-export default OrdersSection;
+          {pagination.totalPages > 1 && (
+            <div className="p-6 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Showing {orders.length} of {pagination.totalOrders} orders
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={pagination.currentPage === 1}
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  className="p-2 rounded-xl bg-gray-100 text-gray-600 disabled:opacity-50 hover:bg-gray-200 transition"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="text-sm font-semibold text-gray-900">
+                  Page {pagination.currentPage} / {pagination.totalPages}
+                </span>
+                <button
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  className="p-2 rounded-xl bg-gray-100 text-gray-600 disabled:opacity-50 hover:bg-gray-200 transition"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  
+
+
+    )}

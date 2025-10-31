@@ -44,6 +44,8 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from 'next/navigation';
 import { useDebounce } from 'use-debounce';
 import { useRef } from 'react';
+import { MenuItemsGrid } from './MenuItemsSection';
+import { OrdersGrid } from './OrdersSection';
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
@@ -550,17 +552,16 @@ const ImageUpload = ({ value, onChange, className = "", multiple = false, id }) 
 };
 
 // Fixed SearchInput Component
-const SearchInput = React.memo(({ placeholder, value, onChange, className = "" }) => {
+const SearchInput = React.memo(({ placeholder, value, onChange, onClear, className = '' }) => {
   const inputRef = useRef(null);
 
   const handleClear = useCallback(() => {
     onChange('');
+    onClear?.();
     inputRef.current?.focus();
-  }, [onChange]);
+  }, [onChange, onClear]);
 
-  const handleChange = useCallback((e) => {
-    onChange(e.target.value);
-  }, [onChange]);
+  const handleChange = useCallback((e) => onChange(e.target.value), [onChange]);
 
   return (
     <div className="relative">
@@ -587,6 +588,7 @@ const SearchInput = React.memo(({ placeholder, value, onChange, className = "" }
 });
 
 SearchInput.displayName = 'SearchInput';
+
 
 // Dynamic Form Array Component
 const FormArrayField = ({ items, onChange, fieldConfig, title }) => {
@@ -1974,7 +1976,7 @@ const loadOffers = async (params = {}) => {
 
 
         {/* Availability Schedule */}
-        <div className="bg-gradient-to-br from-cyan-50 to-white p-6 rounded-2xl border border-cyan-200">
+        <div className="bg-gradient-to-br from-cyan-50 to-white p-6 rounded-2xl border border-cyan-200">x
           <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
             <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
             Availability Schedule
@@ -3174,250 +3176,26 @@ const loadOffers = async (params = {}) => {
             ]}
           />
         );
-      case 'menu-items':
-        return (
-          <DataGrids
-            data={foodItems}
-            title="Menu Items"
-            onEdit={(item) => openModal('menu-item', item)}
-            onDelete={(id) => handleDelete(id, 'food-item')}
-            onAdd={() => openModal('menu-item')}
-            showSearch={true}
-            pagination={foodItemsPagination}
-            columns={[
-              {
-                header: 'Image',
-                key: 'imageUrl',
-                render: (item) => (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name || 'Unnamed'}
-                    className="w-16 h-16 object-cover rounded-xl"
-                  />
-                ),
-              },
-              {
-                header: 'Name',
-                key: 'name',
-                render: (item) => (
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {getSafeName(item._multilingual?.name || item.name, apiService.language)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {getSafeName(item.category?._multilingual?.name || item.category?.name, apiService.language)}
-                    </p>
-                  </div>
-                ),
-              },
-              {
-                header: 'Price',
-                key: 'price',
-                render: (item) => formatCurrency(item.price),
-              },
-              {
-                header: 'Stock',
-                key: 'stockQuantity',
-                render: (item) => (
-                  <span
-                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.stockQuantity > item.lowStockAlert
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                      }`}
-                  >
-                    {item.stockQuantity || 0}
-                  </span>
-                ),
-              },
-              {
-                header: 'Status',
-                key: 'status',
-                render: (item) => (
-                  <div className="flex flex-col gap-2">
-                    <span
-                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-red-50 text-red-700 border-red-200'
-                        }`}
-                    >
-                      {item.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <div className="flex gap-1">
-                      {item.isFeatured && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
-                          <Star className="w-3 h-3 mr-1" />
-                          Featured
-                        </span>
-                      )}
-                      {item.isPopular && (
-                        <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                          Popular
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ),
-              },
-            ]}
-            actions={[]}
-          />
-        );
+     // Inside RestaurantAdminDashboard (renderContent)
+case 'menu-items':
+  return (
+    <MenuItemsGrid
+      onEdit={(item) => openModal('menu-item', item)}
+      onAdd={() => openModal('menu-item')}
+      onDelete={(id) => handleDelete(id, 'food-item')}
+      apiService={apiService}
+      language={selectedLanguage}
+    />
+  );
 
-      case 'orders':
-        return (
-          <DataGrids
-            data={orders}
-            title="Orders"
-            onEdit={(item) => openModal('order-details', item)}
-            onDelete={() => { }}
-            showSearch={true}
-            pagination={orderPagination}
-            columns={[
-              {
-                header: 'Order #',
-                key: 'orderNumber',
-                render: (item) => (
-                  <div>
-                    <p className="font-bold text-gray-900">{item.orderNumber || `#${item._id?.slice(-6)}`}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                      <Calendar className="w-3 h-3" />
-                      {formatDate(item.createdAt)}
-                    </p>
-                  </div>
-                ),
-              },
-              {
-                header: 'Customer',
-                key: 'userId',
-                render: (item) => (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.userId?.fullName || item.customerName || 'Unknown'}</p>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                header: 'Address',
-                key: 'userId',
-                render: (item) => (
-                  item.deliveryType === 'delivery' ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <LocationEdit className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{item.deliveryAddress.address},<br />{item.deliveryAddress.apartment}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <LocationEdit className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{item.deliveryType}</p>
-                      </div>
-                    </div>
-                  )
-                ),
-              },
-              {
-                header: 'Phone',
-                key: 'userId',
-                render: (item) => (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <PhoneCallIcon className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      {item.userId?.phone || item.customerName ? (
-                        <a
-                          href={`tel:${item.userId?.phone || ''}`}
-                          className="font-semibold text-gray-900 hover:text-blue-600"
-                        >
-                          {item.userId?.phone || item.customerName}
-                        </a>
-                      ) : (
-                        <p className="font-semibold text-gray-900">Unknown</p>
-                      )}
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                header: 'Items',
-                key: 'items',
-                render: (item) => (
-                  <div className="max-w-xs">
-                    <p className="text-sm text-gray-900 font-medium">
-                      {item.items?.slice(0, 2).map((orderItem) => (
-                        typeof orderItem.foodItem?.name === 'object' && orderItem.foodItem?.name
-                          ? orderItem.foodItem.name[apiService.language] || orderItem.foodItem.name.en || Object.values(orderItem.foodItem.name)[0] || 'Unknown Item'
-                          : orderItem.foodItem?.name || 'Unknown Item'
-                      )).join(', ')}
-                      {item.items?.length > 2 && <span className="text-gray-500"> +{item.items.length - 2} more</span>}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">{item.items?.length || 0} items total</p>
-                    {item.items?.some(orderItem => orderItem.specialInstructions) && (
-                      <p className="text-xs text-gray-500">
-                        Special Instruction: {item.items.slice(0, 2).map((orderItem) => orderItem.specialInstructions || 'None').join(', ')}
-                      </p>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                header: 'Total',
-                key: 'total',
-                render: (item) => (
-                  <div>
-                    <p className="font-bold text-lg text-gray-900">
-                      {formatCurrency(item.total)}
-                    </p>
-                    {item.deliveryType === 'delivery' && (
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                        <MapPin className="w-3 h-3" />
-                        Delivery fee included ({formatCurrency(item.deliveryFee)})
-                      </p>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                header: 'Status',
-                key: 'status',
-                render: (item) => (
-                  <select
-                    className={`text-xs font-semibold rounded-xl px-3 py-2 border-0 cursor-pointer transition-all hover:shadow-md ${getStatusColor(item.status)}`}
-                    value={item.status}
-                    onChange={(e) => handleOrderStatusUpdate(item._id, e.target.value)}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="preparing">Preparing</option>
-                    <option value="ready">Ready</option>
-                    <option value="out-for-delivery">Out for Delivery</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                ),
-              },
-            ]}
-            actions={[
-              {
-                icon: Eye,
-                label: 'View Details',
-                color: 'blue',
-                onClick: (item) => openModal('order-details', item),
-              },
-            ]}
-          />
-        );
-
+case 'orders':
+  return (
+    <OrdersGrid
+      onView={(order) => openModal('order-details', order)}
+      apiService={apiService}
+      language={selectedLanguage}
+    />
+  );
       case 'offers':
         return (
           <DataGrids
