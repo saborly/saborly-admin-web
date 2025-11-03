@@ -35,10 +35,10 @@ import {
   MapPin,
   Tag,
   Layers,
+  Smartphone,
+  Monitor,
+  Globe,
 } from 'lucide-react';
-import { useRouter } from "next/navigation";
-
-
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
 
@@ -329,7 +329,6 @@ const Offers = () => {
     totalPages: 1,
     totalOffers: 0,
   });
-  const router = useRouter();
 
   useEffect(() => {
     loadData();
@@ -369,6 +368,9 @@ const Offers = () => {
     if (params.type) {
       queryParams.type = params.type;
     }
+    if (params.platform) {
+      queryParams.platform = params.platform;
+    }
 
     const response = await apiService.getOffers(queryParams);
     setOffers(response.offers || []);
@@ -399,24 +401,27 @@ const Offers = () => {
     setModalType('');
   };
 
-  const handleSaveOffer = async (data) => {
-    setLoading(true);
-    try {
-      if (editingItem) {
-        await apiService.updateOffer(editingItem._id, data);
-        showNotificationDialog('Success!', 'Offer updated successfully');
-      } else {
-        await apiService.createOffer(data);
-        showNotificationDialog('Success!', 'Offer created successfully');
-      }
-      closeModal();
-      loadOffers();
-    } catch (error) {
-      showNotificationDialog('Error', 'Error: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
+const handleSaveOffer = async (data) => {
+  setLoading(true);
+  try {
+    console.log('Saving offer data:', data); // Debug log
+    
+    if (editingItem) {
+      await apiService.updateOffer(editingItem._id, data);
+      showNotificationDialog('Success!', 'Offer updated successfully');
+    } else {
+      await apiService.createOffer(data);
+      showNotificationDialog('Success!', 'Offer created successfully');
     }
-  };
+    closeModal();
+    loadOffers();
+  } catch (error) {
+    console.error('Save offer error:', error);
+    showNotificationDialog('Error', 'Error: ' + error.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDeleteOffer = async (id) => {
     showConfirmDialog(
@@ -437,65 +442,151 @@ const Offers = () => {
       }
     );
   };
+
   const navigationItems = [
     { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, gradient: 'from-blue-500 to-indigo-600' },
     { id: 'categories', name: 'Categories', icon: Grid3X3, gradient: 'from-emerald-500 to-teal-600' },
     { id: 'menu-items', name: 'Menu Items', icon: MenuIcon, gradient: 'from-orange-500 to-red-600' },
     { id: 'offers', name: 'Offers', icon: Percent, gradient: 'from-purple-500 to-pink-600' },
     { id: 'orders', name: 'Orders', icon: ShoppingBag, gradient: 'from-cyan-500 to-blue-600' },
-    { id: 'banners', name: 'Banners', icon: ImageIcon, gradient: 'from-rose-500 to-pink-600' }, // New banner navigation item
+    { id: 'banners', name: 'Banners', icon: ImageIcon, gradient: 'from-rose-500 to-pink-600' },
     { id: 'settings', name: 'Settings', icon: Settings, gradient: 'from-gray-500 to-gray-700' },
   ];
 
-  // Enhanced Offer Form with Combo Support
-  const OfferForm = () => {
-    const [formData, setFormData] = useState({
-      title: editingItem?.title || '',
-      description: editingItem?.description || '',
-      subtitle: editingItem?.subtitle || '',
-      imageUrl: editingItem?.imageUrl || '',
-      bannerColor: editingItem?.bannerColor || '#E91E63',
-      type: editingItem?.type || 'percentage',
-      value: editingItem?.value || 0,
-      minOrderAmount: editingItem?.minOrderAmount || 0,
-      maxDiscountAmount: editingItem?.maxDiscountAmount || 0,
-      usageLimit: editingItem?.usageLimit || '',
-      userUsageLimit: editingItem?.userUsageLimit || 1,
-      appliedToCategories: editingItem?.appliedToCategories?.map(cat => cat._id) || [],
-      appliedToItems: editingItem?.appliedToItems?.map(item => item._id) || [],
-      comboItems: editingItem?.comboItems || [],
-      comboPrice: editingItem?.comboPrice || 0,
-      deliveryTypes: editingItem?.deliveryTypes || [],
-      isActive: editingItem?.isActive !== false,
-      isFeatured: editingItem?.isFeatured || false,
-      startDate: editingItem?.startDate ? new Date(editingItem.startDate).toISOString().slice(0, 16) : '',
-      endDate: editingItem?.endDate ? new Date(editingItem.endDate).toISOString().slice(0, 16) : '',
-      priority: editingItem?.priority || 1,
-      termsAndConditions: editingItem?.termsAndConditions?.join('\n') || '',
-    });
+  // Enhanced Offer Form with Platform Support
+ const OfferForm = () => {
+  const [formData, setFormData] = useState({
+    title: editingItem?.title || '',
+    description: editingItem?.description || '',
+    subtitle: editingItem?.subtitle || '',
+    imageUrl: editingItem?.imageUrl || '',
+    bannerColor: editingItem?.bannerColor || '#E91E63',
+    type: editingItem?.type || 'percentage',
+    value: editingItem?.value || 0,
+    minOrderAmount: editingItem?.minOrderAmount || 0,
+    maxDiscountAmount: editingItem?.maxDiscountAmount || 0,
+    usageLimit: editingItem?.usageLimit || '',
+    userUsageLimit: editingItem?.userUsageLimit || 1,
+    appliedToCategories: editingItem?.appliedToCategories?.map(cat => cat._id) || [],
+    appliedToItems: editingItem?.appliedToItems?.map(item => item._id) || [],
+    comboItems: editingItem?.comboItems || [],
+    comboPrice: editingItem?.comboPrice || 0,
+    deliveryTypes: editingItem?.deliveryTypes || [],
+    platforms: editingItem?.platforms || ['all'], // Default to 'all'
+    isActive: editingItem?.isActive !== false,
+    isFeatured: editingItem?.isFeatured || false,
+    startDate: editingItem?.startDate ? new Date(editingItem.startDate).toISOString().slice(0, 16) : '',
+    endDate: editingItem?.endDate ? new Date(editingItem.endDate).toISOString().slice(0, 16) : '',
+    priority: editingItem?.priority || 1,
+    termsAndConditions: editingItem?.termsAndConditions?.join('\n') || '',
+  });
 
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      const submitData = {
-        ...formData,
-        termsAndConditions: formData.termsAndConditions.split('\n').map(t => t.trim()).filter(t => t),
-        value: formData.value ? parseFloat(formData.value) : undefined,
-        minOrderAmount: parseFloat(formData.minOrderAmount) || 0,
-        maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : undefined,
-        comboPrice: formData.type === 'combo' ? parseFloat(formData.comboPrice) || 0 : undefined,
-        usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
-        userUsageLimit: parseInt(formData.userUsageLimit) || 1,
-        priority: parseInt(formData.priority) || 1,
-        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
-        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+  // Fixed platform change handler
+  const handlePlatformChange = (platform) => {
+    setFormData(prev => {
+      let newPlatforms;
+      
+      if (platform === 'all') {
+        // If "all" is selected, clear other selections and set only 'all'
+        newPlatforms = ['all'];
+      } else {
+        // Remove 'all' if it exists and handle the specific platform
+        newPlatforms = prev.platforms.filter(p => p !== 'all');
+        
+        if (newPlatforms.includes(platform)) {
+          // Remove the platform if it's already selected
+          newPlatforms = newPlatforms.filter(p => p !== platform);
+        } else {
+          // Add the platform
+          newPlatforms.push(platform);
+        }
+        
+        // If no platforms are selected, default to 'all'
+        if (newPlatforms.length === 0) {
+          newPlatforms = ['all'];
+        }
+      }
+      
+      return {
+        ...prev,
+        platforms: newPlatforms
       };
-      handleSaveOffer(submitData);
-    };
+    });
+  };
 
-    return (
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
-        <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
+  // Helper to check if a platform is selected
+  const isPlatformSelected = (platform) => {
+    return formData.platforms.includes(platform);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Validate form data
+    const errors = validateForm(formData);
+    if (Object.keys(errors).length > 0) {
+      showNotificationDialog('Validation Error', Object.values(errors).join('\n'), 'error');
+      return;
+    }
+
+    const submitData = {
+      ...formData,
+      termsAndConditions: formData.termsAndConditions.split('\n').map(t => t.trim()).filter(t => t),
+      value: formData.value ? parseFloat(formData.value) : undefined,
+      minOrderAmount: parseFloat(formData.minOrderAmount) || 0,
+      maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : undefined,
+      comboPrice: formData.type === 'combo' ? parseFloat(formData.comboPrice) || 0 : undefined,
+      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
+      userUsageLimit: parseInt(formData.userUsageLimit) || 1,
+      priority: parseInt(formData.priority) || 1,
+      startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
+      endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+      platforms: formData.platforms.length > 0 ? formData.platforms : ['all'], // Ensure platforms array
+    };
+    
+    console.log('Submitting offer data:', submitData); // Debug log
+    handleSaveOffer(submitData);
+  };
+
+  // Form validation
+  const validateForm = (data) => {
+    const errors = {};
+    
+    if (!data.title?.trim()) {
+      errors.title = 'Title is required';
+    }
+    
+    if (!data.description?.trim()) {
+      errors.description = 'Description is required';
+    }
+    
+    if (!data.imageUrl) {
+      errors.imageUrl = 'Image is required';
+    }
+    
+    if (!data.startDate) {
+      errors.startDate = 'Start date is required';
+    }
+    
+    if (!data.endDate) {
+      errors.endDate = 'End date is required';
+    }
+    
+    if (data.startDate && data.endDate && new Date(data.endDate) <= new Date(data.startDate)) {
+      errors.endDate = 'End date must be after start date';
+    }
+    
+    if (data.type === 'combo' && (!data.comboItems || data.comboItems.length === 0)) {
+      errors.comboItems = 'At least one combo item is required';
+    }
+    
+    return errors;
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Basic Information - unchanged */}
+ <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
           <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
             Basic Information
@@ -554,7 +645,80 @@ const Offers = () => {
             />
           </div>
         </div>
+      {/* Fixed Platform Selection */}
+      <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-2xl border border-indigo-200">
+        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+          Platform Availability
+        </h4>
+        <p className="text-sm text-gray-600 mb-4">
+          Select which platforms this offer should be available on
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* All Platforms Option */}
+          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+            isPlatformSelected('all')
+              ? 'border-indigo-500 bg-indigo-50 shadow-md'
+              : 'border-gray-200 bg-white hover:border-indigo-300'
+          }`}>
+            <input
+              type="checkbox"
+              checked={isPlatformSelected('all')}
+              onChange={() => handlePlatformChange('all')}
+              className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-indigo-600" />
+              <div>
+                <span className="text-sm font-semibold text-gray-800 block">All Platforms</span>
+                <span className="text-xs text-gray-500">Mobile & Web</span>
+              </div>
+            </div>
+          </label>
 
+          {/* Mobile Only Option */}
+          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+            isPlatformSelected('mobile')
+              ? 'border-blue-500 bg-blue-50 shadow-md'
+              : 'border-gray-200 bg-white hover:border-blue-300'
+          }`}>
+            <input
+              type="checkbox"
+              checked={isPlatformSelected('mobile')}
+              onChange={() => handlePlatformChange('mobile')}
+              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-5 h-5 text-blue-600" />
+              <div>
+                <span className="text-sm font-semibold text-gray-800 block">Mobile Only</span>
+                <span className="text-xs text-gray-500">App exclusive</span>
+              </div>
+            </div>
+          </label>
+
+          {/* Web Only Option */}
+          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+            isPlatformSelected('web')
+              ? 'border-purple-500 bg-purple-50 shadow-md'
+              : 'border-gray-200 bg-white hover:border-purple-300'
+          }`}>
+            <input
+              type="checkbox"
+              checked={isPlatformSelected('web')}
+              onChange={() => handlePlatformChange('web')}
+              className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+            />
+            <div className="flex items-center gap-2">
+              <Monitor className="w-5 h-5 text-purple-600" />
+              <div>
+                <span className="text-sm font-semibold text-gray-800 block">Web Only</span>
+                <span className="text-xs text-gray-500">Website exclusive</span>
+              </div>
+            </div>
+          </label>
+        </div>
+        </div>
         {/* Offer Details */}
         <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl border border-purple-200">
           <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -696,6 +860,31 @@ const Offers = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Max Discount Amount</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                value={formData.maxDiscountAmount}
+                onChange={(e) => setFormData({ ...formData, maxDiscountAmount: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Priority (1-10)</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div>
               <label className="block text-sm font-semibold text-gray-800 mb-2">Start Date *</label>
               <input
                 type="datetime-local"
@@ -716,11 +905,35 @@ const Offers = () => {
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Total Usage Limit</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                value={formData.usageLimit}
+                onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
+                placeholder="Leave empty for unlimited"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Per User Limit</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                value={formData.userUsageLimit}
+                onChange={(e) => setFormData({ ...formData, userUsageLimit: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Applicability - Only show for non-combo offers */}
         {formData.type !== 'combo' && (
-                      <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-200">
+          <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-200">
             <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
               Apply To
@@ -769,6 +982,63 @@ const Offers = () => {
             </div>
           </div>
         )}
+
+        {/* Delivery Types */}
+        <div className="bg-gradient-to-br from-cyan-50 to-white p-6 rounded-2xl border border-cyan-200">
+          <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+            Delivery Options
+          </h4>
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-center gap-3 bg-white p-4 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-cyan-400 transition-all">
+              <input
+                type="checkbox"
+                checked={formData.deliveryTypes.includes('delivery')}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setFormData({ ...formData, deliveryTypes: [...formData.deliveryTypes, 'delivery'] });
+                  } else {
+                    setFormData({ ...formData, deliveryTypes: formData.deliveryTypes.filter(t => t !== 'delivery') });
+                  }
+                }}
+                className="w-5 h-5 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              <span className="text-sm font-semibold text-gray-800">Delivery</span>
+            </label>
+            <label className="flex items-center gap-3 bg-white p-4 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-cyan-400 transition-all">
+              <input
+                type="checkbox"
+                checked={formData.deliveryTypes.includes('pickup')}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setFormData({ ...formData, deliveryTypes: [...formData.deliveryTypes, 'pickup'] });
+                  } else {
+                    setFormData({ ...formData, deliveryTypes: formData.deliveryTypes.filter(t => t !== 'pickup') });
+                  }
+                }}
+                className="w-5 h-5 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              <span className="text-sm font-semibold text-gray-800">Pickup</span>
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Leave both unchecked to apply to all delivery types</p>
+        </div>
+
+        {/* Terms & Conditions */}
+        <div className="bg-gradient-to-br from-amber-50 to-white p-6 rounded-2xl border border-amber-200">
+          <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+            Terms & Conditions
+          </h4>
+          <textarea
+            rows="4"
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all resize-none"
+            value={formData.termsAndConditions}
+            onChange={(e) => setFormData({ ...formData, termsAndConditions: e.target.value })}
+            placeholder="Enter terms and conditions (one per line)"
+          />
+          <p className="text-xs text-gray-500 mt-2">Enter each term on a new line</p>
+        </div>
 
         {/* Status & Settings */}
         <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200">
@@ -858,6 +1128,7 @@ const Offers = () => {
     const [filters, setFilters] = useState({
       featured: null,
       type: '',
+      platform: '',
       page: 1,
       limit: 20,
     });
@@ -869,62 +1140,80 @@ const Offers = () => {
       const queryParams = { page: newFilters.page, limit: newFilters.limit };
       if (newFilters.featured !== null) queryParams.featured = newFilters.featured;
       if (newFilters.type) queryParams.type = newFilters.type;
+      if (newFilters.platform) queryParams.platform = newFilters.platform;
 
       loadOffers(queryParams);
     };
 
     return (
-      <div className="mb-6 p-4 bg-white rounded-2xl shadow-lg border border-gray-200 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <span className="text-sm font-semibold text-gray-800">Filters:</span>
-        </div>
-        <select
-          className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          value={filters.featured === null ? '' : filters.featured}
-          onChange={(e) => handleFilterChange('featured', e.target.value === '' ? null : e.target.value === 'true')}
-        >
-          <option value="">All Offers</option>
-          <option value="true">Featured Only</option>
-          <option value="false">Non-Featured</option>
-        </select>
-        <select
-          className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          value={filters.type}
-          onChange={(e) => handleFilterChange('type', e.target.value)}
-        >
-          <option value="">All Types</option>
-          <option value="percentage">Percentage</option>
-          <option value="fixed-amount">Fixed Amount</option>
-          <option value="buy-one-get-one">BOGO</option>
-          <option value="free-delivery">Free Delivery</option>
-          <option value="combo">Combo Deal</option>
-        </select>
-         <button
+      <div className="mb-6 p-4 bg-white rounded-2xl shadow-lg border border-gray-200">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="w-5 h-5 text-gray-600" />
+            <span className="text-sm font-semibold text-gray-800">Filters:</span>
+          </div>
+          <select
+            className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            value={filters.featured === null ? '' : filters.featured}
+            onChange={(e) => handleFilterChange('featured', e.target.value === '' ? null : e.target.value === 'true')}
+          >
+            <option value="">All Offers</option>
+            <option value="true">Featured Only</option>
+            <option value="false">Non-Featured</option>
+          </select>
+          <select
+            className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            value={filters.type}
+            onChange={(e) => handleFilterChange('type', e.target.value)}
+          >
+            <option value="">All Types</option>
+            <option value="percentage">Percentage</option>
+            <option value="fixed-amount">Fixed Amount</option>
+            <option value="buy-one-get-one">BOGO</option>
+            <option value="free-delivery">Free Delivery</option>
+            <option value="combo">Combo Deal</option>
+          </select>
+          <select
+            className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            value={filters.platform}
+            onChange={(e) => handleFilterChange('platform', e.target.value)}
+          >
+            <option value="">All Platforms</option>
+            <option value="all">All Platforms</option>
+            <option value="mobile">Mobile Only</option>
+            <option value="web">Web Only</option>
+          </select>
+          <button
             onClick={() => openModal('offer')}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 font-semibold shadow-lg transition-all hover:scale-105"
+            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-xl hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 font-semibold shadow-lg transition-all hover:scale-105 ml-auto"
           >
             <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Create Offer</span>
           </button>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => handleFilterChange('page', Math.max(1, filters.page - 1))}
-            disabled={filters.page === 1}
-            className="px-4 py-2 bg-gray-100 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all text-sm font-medium"
-          >
-            Previous
-          </button>
-          <span className="px-4 py-2 text-sm font-medium text-gray-700">
-            Page {pagination.currentPage} of {pagination.totalPages}
-          </span>
-          <button
-            onClick={() => handleFilterChange('page', filters.page + 1)}
-            disabled={filters.page === pagination.totalPages}
-            className="px-4 py-2 bg-gray-100 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all text-sm font-medium"
-          >
-            Next
-          </button>
+        </div>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+          <div className="text-sm text-gray-600">
+            Showing {offers.length} of {pagination.totalOffers} offers
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleFilterChange('page', Math.max(1, filters.page - 1))}
+              disabled={filters.page === 1}
+              className="px-4 py-2 bg-gray-100 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all text-sm font-medium"
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 text-sm font-medium text-gray-700">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+            <button
+              onClick={() => handleFilterChange('page', filters.page + 1)}
+              disabled={filters.page === pagination.totalPages}
+              className="px-4 py-2 bg-gray-100 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all text-sm font-medium"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -953,6 +1242,22 @@ const Offers = () => {
       return badges[type] || 'bg-gray-100 text-gray-700 border-gray-300';
     };
 
+    const getPlatformBadge = (platforms) => {
+      if (!platforms || platforms.length === 0 || platforms.includes('all')) {
+        return <Globe className="w-4 h-4 text-indigo-600" />;
+      }
+      if (platforms.includes('mobile') && platforms.includes('web')) {
+        return <Globe className="w-4 h-4 text-indigo-600" />;
+      }
+      if (platforms.includes('mobile')) {
+        return <Smartphone className="w-4 h-4 text-blue-600" />;
+      }
+      if (platforms.includes('web')) {
+        return <Monitor className="w-4 h-4 text-purple-600" />;
+      }
+      return <Globe className="w-4 h-4 text-gray-600" />;
+    };
+
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {offers.map((offer) => (
@@ -966,7 +1271,7 @@ const Offers = () => {
                 alt={offer.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-3 right-3 flex gap-2">
+              <div className="absolute top-3 right-3 flex gap-2 flex-wrap">
                 {offer.isFeatured && (
                   <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
                     <Star className="w-3 h-3" />
@@ -976,6 +1281,16 @@ const Offers = () => {
                 <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getOfferTypeBadge(offer.type)} shadow-lg flex items-center gap-1`}>
                   {getOfferTypeIcon(offer.type)}
                   {offer.type.replace('-', ' ').toUpperCase()}
+                </span>
+              </div>
+              <div className="absolute top-3 left-3">
+                <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                  {getPlatformBadge(offer.platforms)}
+                  <span className="text-gray-700">
+                    {!offer.platforms || offer.platforms.length === 0 || offer.platforms.includes('all') 
+                      ? 'All' 
+                      : offer.platforms.join(', ').toUpperCase()}
+                  </span>
                 </span>
               </div>
             </div>
@@ -1022,8 +1337,15 @@ const Offers = () => {
                     </span>
                   </div>
                 )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Status:</span>
+                  <span className={`font-semibold ${offer.isActive ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {offer.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
 
+             
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => openModal('offer', offer)}
