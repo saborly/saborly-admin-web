@@ -2,9 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useDebounce } from 'use-debounce';
 import { Loader2, Edit3, Trash2, Plus, Star, Search, X } from 'lucide-react';
 
-// Mock ApiService if not provided
-// const ApiService = { getFoodItems: async () => ({ items: [], currentPage: 1, totalPages: 1, totalItems: 0 }) };
-
 const SearchInput = React.memo(
   ({ placeholder, value, onChange, onClear, className = '' }) => {
     const inputRef = useRef(null);
@@ -61,8 +58,9 @@ export const MenuItemsGrid = ({
   const [debouncedSearch] = useDebounce(searchTerm, 500);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Define load function with useCallback to prevent infinite re-renders
   const load = useCallback(
-    async (page = 1, search = debouncedSearch) => {
+    async (page = 1, search = '') => {
       setLoading(true);
       setIsSearching(search !== '');
       try {
@@ -80,26 +78,34 @@ export const MenuItemsGrid = ({
           totalItems: res.totalItems || 0,
         });
       } catch (e) {
-        console.error(e);
+        console.error('Menu items load error:', e);
       } finally {
         setLoading(false);
         setIsSearching(false);
       }
     },
-    [apiService, debouncedSearch, language]
- );
+    [apiService, language] // Remove debouncedSearch from dependencies
+  );
 
+  // Initial load - only on mount and when language changes
   useEffect(() => {
     load(1, '');
-  }, [language, load]);
+  }, [language]); // Remove load from dependencies
 
+  // Debounced search effect
   useEffect(() => {
-    if (debouncedSearch !== undefined) load(1, debouncedSearch);
-  }, [debouncedSearch, load]);
+    if (debouncedSearch !== undefined) {
+      load(1, debouncedSearch);
+    }
+  }, [debouncedSearch]); // Remove load from dependencies
 
   const handleClear = () => {
     setSearchTerm('');
-    load(1, '');
+    // Don't call load here - the useEffect will handle it automatically
+  };
+
+  const handlePageChange = (newPage) => {
+    load(newPage, debouncedSearch);
   };
 
   const formatCurrency = (number) =>
@@ -150,7 +156,7 @@ export const MenuItemsGrid = ({
       </div>
 
       {/* Table */}
-      {loading ? (
+      {loading && items.length === 0 ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
         </div>
@@ -247,14 +253,14 @@ export const MenuItemsGrid = ({
                       <div className="flex items-center gap-2 justify-end">
                         <button
                           onClick={() => onEdit(it)}
-                          className="p-2 rounded-xl text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-all"
+                          className="p-2 rounded-xl text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-all duration-200 hover:scale-110"
                           title="Edit"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onDelete(it._id)}
-                          className="p-2 rounded-xl text-red-600 hover:text-red-900 hover:bg-red-50 transition-all"
+                          className="p-2 rounded-xl text-red-600 hover:text-red-900 hover:bg-red-50 transition-all duration-200 hover:scale-110"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -276,8 +282,8 @@ export const MenuItemsGrid = ({
               <div className="flex items-center gap-4">
                 <button
                   disabled={pagination.currentPage === 1}
-                  onClick={() => load(pagination.currentPage - 1)}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition"
+                  onClick={() => handlePageChange(pagination.currentPage - 1)}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all duration-200"
                 >
                   Previous
                 </button>
@@ -286,12 +292,22 @@ export const MenuItemsGrid = ({
                 </span>
                 <button
                   disabled={pagination.currentPage === pagination.totalPages}
-                  onClick={() => load(pagination.currentPage + 1)}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition"
+                  onClick={() => handlePageChange(pagination.currentPage + 1)}
+                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all duration-200"
                 >
                   Next
                 </button>
               </div>
+            </div>
+          )}
+
+          {items.length === 0 && !loading && (
+            <div className="text-center py-20 text-gray-500">
+              <div className="text-6xl mb-4">🍽️</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No menu items found</h3>
+              <p className="text-sm text-gray-500">
+                {searchTerm ? 'Try adjusting your search terms' : 'Get started by creating your first menu item.'}
+              </p>
             </div>
           )}
         </>
