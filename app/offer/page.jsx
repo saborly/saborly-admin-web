@@ -39,6 +39,7 @@ import {
   Monitor,
   Globe,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
 
@@ -144,7 +145,7 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border-0">
+      <div className="bg-white rounded-3xl max-w-7xl w-full shadow-2xl border-0">
         <div className="p-8 text-center">
           <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 ${
             type === 'danger' ? 'bg-red-50' : 'bg-amber-50'
@@ -324,6 +325,8 @@ const Offers = () => {
   const [categories, setCategories] = useState([]);
   const [foodItems, setFoodItems] = useState([]);
   const [offers, setOffers] = useState([]);
+    const router = useRouter();
+
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -1100,7 +1103,7 @@ const handleSaveOffer = async (data) => {
   };
 
   // Modal Component
-  const Modal = ({ children, title, size = 'max-w-5xl' }) => {
+  const Modal = ({ children, title, size = 'max-w-6xl' }) => {
     if (!showModal) return null;
 
     return (
@@ -1487,7 +1490,7 @@ const handleSaveOffer = async (data) => {
             <OfferFilters />
             {offers.length === 0 ? (
               <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-16 text-center">
-                <div className="max-w-md mx-auto">
+                <div className="max-w-9xl mx-auto">
                   <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <Percent className="w-12 h-12 text-purple-600" />
                   </div>
