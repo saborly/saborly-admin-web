@@ -38,15 +38,37 @@ import {
   Smartphone,
   Monitor,
   Globe,
+  Award,
+  Shield,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
+
+// Device ID Generator - Creates a unique device identifier
+const getDeviceId = ()=> {
+  if (typeof window === 'undefined') {
+    return 'server-temp-device'; // fallback on server
+  }
+
+  let deviceId = localStorage.getItem('deviceId');
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    try {
+      localStorage.setItem('deviceId', deviceId);
+    } catch (e) {
+      console.warn('Failed to save deviceId to localStorage', e);
+    }
+  }
+  return deviceId;
+};
 
 // API Service Class
 class ApiService {
   constructor() {
-    this.token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+   if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem('authToken');
+      this.deviceId = getDeviceId(); // now safe
+    }
   }
 
   async request(endpoint, options = {}) {
@@ -97,18 +119,23 @@ class ApiService {
     }
   }
 
-  async getCategories() {
-    return this.request('/categories/all');
-  }
-
-  async getFoodItems(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/food-items/getallitems${queryString ? `?${queryString}` : ''}`);
-  }
-
   async getOffers(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
+    // Add deviceId to params for filtering claimed offers
+    const queryParams = { ...params, deviceId: this.deviceId };
+    const queryString = new URLSearchParams(queryParams).toString();
     return this.request(`/offer${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async canClaimOffer(offerId) {
+    const queryString = new URLSearchParams({ deviceId: this.deviceId }).toString();
+    return this.request(`/offer/${offerId}/can-claim?${queryString}`);
+  }
+
+  async claimOffer(offerId) {
+    return this.request(`/offer/${offerId}/claim`, {
+      method: 'POST',
+      body: JSON.stringify({ deviceId: this.deviceId }),
+    });
   }
 
   async createOffer(data) {
@@ -131,21 +158,23 @@ class ApiService {
     });
   }
 
-  async applyOfferToItems(offerId, itemIds) {
-    return this.request(`/offer/${offerId}/apply-to-items`, {
-      method: 'POST',
-      body: JSON.stringify({ itemIds }),
-    });
+  async getCategories() {
+    return this.request('/categories/all');
+  }
+
+  async getFoodItems(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/food-items/getallitems${queryString ? `?${queryString}` : ''}`);
   }
 }
 
-// Confirmation Dialog
+// Confirmation Dialog Component
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Delete", type = "danger" }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-7xl w-full shadow-2xl border-0">
+      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border-0">
         <div className="p-8 text-center">
           <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 ${
             type === 'danger' ? 'bg-red-50' : 'bg-amber-50'
@@ -182,7 +211,7 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
   );
 };
 
-// Notification Dialog
+// Notification Dialog Component
 const NotificationDialog = ({ isOpen, onClose, title, message, type = "success" }) => {
   if (!isOpen) return null;
 
@@ -316,7 +345,6 @@ const ImageUpload = ({ value, onChange, className = "" }) => {
 const Offers = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
-  const [activeTab, setActiveTab] = useState('offers');
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [apiService] = useState(new ApiService());
@@ -325,7 +353,50 @@ const Offers = () => {
   const [categories, setCategories] = useState([]);
   const [foodItems, setFoodItems] = useState([]);
   const [offers, setOffers] = useState([]);
-    const router = useRouter();
+  const [deviceId,setDeviceId] = useState('');
+  const [activeTab, setActiveTab] = useState("offers");
+  useEffect(() => {
+  setDeviceId(getDeviceId());
+}, []);
+const navigationItems = [
+    {
+      id: "dashboard",
+      name: "Dashboard",
+      icon: LayoutDashboard,
+      gradient: "from-blue-500 to-cyan-600"
+    },
+    {
+      id: "menu",
+      name: "Menu Items",
+      icon: Package,
+      gradient: "from-emerald-500 to-teal-600"
+    },
+    {
+      id: "offers",
+      name: "Offers & Deals",
+      icon: Percent,
+      gradient: "from-purple-600 to-pink-600"
+    },
+    {
+      id: "orders",
+      name: "Orders",
+      icon: ShoppingBag,
+      gradient: "from-orange-500 to-red-600"
+    },
+    {
+      id: "customers",
+      name: "Customers",
+      icon: Users,
+      gradient: "from-indigo-500 to-purple-600"
+    },
+    {
+      id: "settings",
+      name: "Settings",
+      icon: Settings,
+      gradient: "from-gray-600 to-gray-800"
+    }
+  ];
+
 
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -335,14 +406,12 @@ const Offers = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      if (activeTab === 'offers') {
-        await Promise.all([loadCategories(), loadFoodItems(), loadOffers()]);
-      }
+      await Promise.all([loadCategories(), loadFoodItems(), loadOffers()]);
     } catch (error) {
       showNotificationDialog('Error', 'Error loading data: ' + error.message, 'error');
     } finally {
@@ -404,27 +473,25 @@ const Offers = () => {
     setModalType('');
   };
 
-const handleSaveOffer = async (data) => {
-  setLoading(true);
-  try {
-    console.log('Saving offer data:', data); // Debug log
-    
-    if (editingItem) {
-      await apiService.updateOffer(editingItem._id, data);
-      showNotificationDialog('Success!', 'Offer updated successfully');
-    } else {
-      await apiService.createOffer(data);
-      showNotificationDialog('Success!', 'Offer created successfully');
+  const handleSaveOffer = async (data) => {
+    setLoading(true);
+    try {
+      if (editingItem) {
+        await apiService.updateOffer(editingItem._id, data);
+        showNotificationDialog('Success!', 'Offer updated successfully');
+      } else {
+        await apiService.createOffer(data);
+        showNotificationDialog('Success!', 'Offer created successfully');
+      }
+      closeModal();
+      loadOffers();
+    } catch (error) {
+      console.error('Save offer error:', error);
+      showNotificationDialog('Error', 'Error: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
     }
-    closeModal();
-    loadOffers();
-  } catch (error) {
-    console.error('Save offer error:', error);
-    showNotificationDialog('Error', 'Error: ' + error.message, 'error');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleDeleteOffer = async (id) => {
     showConfirmDialog(
@@ -446,150 +513,132 @@ const handleSaveOffer = async (data) => {
     );
   };
 
-  const navigationItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, gradient: 'from-blue-500 to-indigo-600' },
-    { id: 'categories', name: 'Categories', icon: Grid3X3, gradient: 'from-emerald-500 to-teal-600' },
-    { id: 'menu-items', name: 'Menu Items', icon: MenuIcon, gradient: 'from-orange-500 to-red-600' },
-    { id: 'offers', name: 'Offers', icon: Percent, gradient: 'from-purple-500 to-pink-600' },
-    { id: 'orders', name: 'Orders', icon: ShoppingBag, gradient: 'from-cyan-500 to-blue-600' },
-    { id: 'banners', name: 'Banners', icon: ImageIcon, gradient: 'from-rose-500 to-pink-600' },
-    { id: 'settings', name: 'Settings', icon: Settings, gradient: 'from-gray-500 to-gray-700' },
-  ];
+  // Enhanced Offer Form with One-Time Per Device Support
+  const OfferForm = () => {
+    const [formData, setFormData] = useState({
+      title: editingItem?.title || '',
+      description: editingItem?.description || '',
+      subtitle: editingItem?.subtitle || '',
+      imageUrl: editingItem?.imageUrl || '',
+      bannerColor: editingItem?.bannerColor || '#E91E63',
+      type: editingItem?.type || 'percentage',
+      value: editingItem?.value || 0,
+      minOrderAmount: editingItem?.minOrderAmount || 0,
+      maxDiscountAmount: editingItem?.maxDiscountAmount || 0,
+      usageLimit: editingItem?.usageLimit || '',
+      userUsageLimit: editingItem?.userUsageLimit || 1,
+      appliedToCategories: editingItem?.appliedToCategories?.map(cat => cat._id) || [],
+      appliedToItems: editingItem?.appliedToItems?.map(item => item._id) || [],
+      comboItems: editingItem?.comboItems || [],
+      comboPrice: editingItem?.comboPrice || 0,
+      deliveryTypes: editingItem?.deliveryTypes || [],
+      platforms: editingItem?.platforms || ['all'],
+      isOneTimePerDevice: editingItem?.isOneTimePerDevice || false, // NEW FIELD
+      isActive: editingItem?.isActive !== false,
+      isFeatured: editingItem?.isFeatured || false,
+      startDate: editingItem?.startDate ? new Date(editingItem.startDate).toISOString().slice(0, 16) : '',
+      endDate: editingItem?.endDate ? new Date(editingItem.endDate).toISOString().slice(0, 16) : '',
+      priority: editingItem?.priority || 1,
+      termsAndConditions: editingItem?.termsAndConditions?.join('\n') || '',
+    });
 
-  // Enhanced Offer Form with Platform Support
- const OfferForm = () => {
-  const [formData, setFormData] = useState({
-    title: editingItem?.title || '',
-    description: editingItem?.description || '',
-    subtitle: editingItem?.subtitle || '',
-    imageUrl: editingItem?.imageUrl || '',
-    bannerColor: editingItem?.bannerColor || '#E91E63',
-    type: editingItem?.type || 'percentage',
-    value: editingItem?.value || 0,
-    minOrderAmount: editingItem?.minOrderAmount || 0,
-    maxDiscountAmount: editingItem?.maxDiscountAmount || 0,
-    usageLimit: editingItem?.usageLimit || '',
-    userUsageLimit: editingItem?.userUsageLimit || 1,
-    appliedToCategories: editingItem?.appliedToCategories?.map(cat => cat._id) || [],
-    appliedToItems: editingItem?.appliedToItems?.map(item => item._id) || [],
-    comboItems: editingItem?.comboItems || [],
-    comboPrice: editingItem?.comboPrice || 0,
-    deliveryTypes: editingItem?.deliveryTypes || [],
-    platforms: editingItem?.platforms || ['all'], // Default to 'all'
-    isActive: editingItem?.isActive !== false,
-    isFeatured: editingItem?.isFeatured || false,
-    startDate: editingItem?.startDate ? new Date(editingItem.startDate).toISOString().slice(0, 16) : '',
-    endDate: editingItem?.endDate ? new Date(editingItem.endDate).toISOString().slice(0, 16) : '',
-    priority: editingItem?.priority || 1,
-    termsAndConditions: editingItem?.termsAndConditions?.join('\n') || '',
-  });
-
-  // Fixed platform change handler
-  const handlePlatformChange = (platform) => {
-    setFormData(prev => {
-      let newPlatforms;
-      
-      if (platform === 'all') {
-        // If "all" is selected, clear other selections and set only 'all'
-        newPlatforms = ['all'];
-      } else {
-        // Remove 'all' if it exists and handle the specific platform
-        newPlatforms = prev.platforms.filter(p => p !== 'all');
+    const handlePlatformChange = (platform) => {
+      setFormData(prev => {
+        let newPlatforms;
         
-        if (newPlatforms.includes(platform)) {
-          // Remove the platform if it's already selected
-          newPlatforms = newPlatforms.filter(p => p !== platform);
-        } else {
-          // Add the platform
-          newPlatforms.push(platform);
-        }
-        
-        // If no platforms are selected, default to 'all'
-        if (newPlatforms.length === 0) {
+        if (platform === 'all') {
           newPlatforms = ['all'];
+        } else {
+          newPlatforms = prev.platforms.filter(p => p !== 'all');
+          
+          if (newPlatforms.includes(platform)) {
+            newPlatforms = newPlatforms.filter(p => p !== platform);
+          } else {
+            newPlatforms.push(platform);
+          }
+          
+          if (newPlatforms.length === 0) {
+            newPlatforms = ['all'];
+          }
         }
+        
+        return {
+          ...prev,
+          platforms: newPlatforms
+        };
+      });
+    };
+
+    const isPlatformSelected = (platform) => {
+      return formData.platforms.includes(platform);
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      
+      const errors = validateForm(formData);
+      if (Object.keys(errors).length > 0) {
+        showNotificationDialog('Validation Error', Object.values(errors).join('\n'), 'error');
+        return;
+      }
+
+      const submitData = {
+        ...formData,
+        termsAndConditions: formData.termsAndConditions.split('\n').map(t => t.trim()).filter(t => t),
+        value: formData.value ? parseFloat(formData.value) : undefined,
+        minOrderAmount: parseFloat(formData.minOrderAmount) || 0,
+        maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : undefined,
+        comboPrice: formData.type === 'combo' ? parseFloat(formData.comboPrice) || 0 : undefined,
+        usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
+        userUsageLimit: parseInt(formData.userUsageLimit) || 1,
+        priority: parseInt(formData.priority) || 1,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+        platforms: formData.platforms.length > 0 ? formData.platforms : ['all'],
+        isOneTimePerDevice: formData.isOneTimePerDevice, // Include in submission
+      };
+      
+      handleSaveOffer(submitData);
+    };
+
+    const validateForm = (data) => {
+      const errors = {};
+      
+      if (!data.title?.trim()) {
+        errors.title = 'Title is required';
       }
       
-      return {
-        ...prev,
-        platforms: newPlatforms
-      };
-    });
-  };
-
-  // Helper to check if a platform is selected
-  const isPlatformSelected = (platform) => {
-    return formData.platforms.includes(platform);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Validate form data
-    const errors = validateForm(formData);
-    if (Object.keys(errors).length > 0) {
-      showNotificationDialog('Validation Error', Object.values(errors).join('\n'), 'error');
-      return;
-    }
-
-    const submitData = {
-      ...formData,
-      termsAndConditions: formData.termsAndConditions.split('\n').map(t => t.trim()).filter(t => t),
-      value: formData.value ? parseFloat(formData.value) : undefined,
-      minOrderAmount: parseFloat(formData.minOrderAmount) || 0,
-      maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount) : undefined,
-      comboPrice: formData.type === 'combo' ? parseFloat(formData.comboPrice) || 0 : undefined,
-      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
-      userUsageLimit: parseInt(formData.userUsageLimit) || 1,
-      priority: parseInt(formData.priority) || 1,
-      startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
-      endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
-      platforms: formData.platforms.length > 0 ? formData.platforms : ['all'], // Ensure platforms array
+      if (!data.description?.trim()) {
+        errors.description = 'Description is required';
+      }
+      
+      if (!data.imageUrl) {
+        errors.imageUrl = 'Image is required';
+      }
+      
+      if (!data.startDate) {
+        errors.startDate = 'Start date is required';
+      }
+      
+      if (!data.endDate) {
+        errors.endDate = 'End date is required';
+      }
+      
+      if (data.startDate && data.endDate && new Date(data.endDate) <= new Date(data.startDate)) {
+        errors.endDate = 'End date must be after start date';
+      }
+      
+      if (data.type === 'combo' && (!data.comboItems || data.comboItems.length === 0)) {
+        errors.comboItems = 'At least one combo item is required';
+      }
+      
+      return errors;
     };
-    
-    console.log('Submitting offer data:', submitData); // Debug log
-    handleSaveOffer(submitData);
-  };
 
-  // Form validation
-  const validateForm = (data) => {
-    const errors = {};
-    
-    if (!data.title?.trim()) {
-      errors.title = 'Title is required';
-    }
-    
-    if (!data.description?.trim()) {
-      errors.description = 'Description is required';
-    }
-    
-    if (!data.imageUrl) {
-      errors.imageUrl = 'Image is required';
-    }
-    
-    if (!data.startDate) {
-      errors.startDate = 'Start date is required';
-    }
-    
-    if (!data.endDate) {
-      errors.endDate = 'End date is required';
-    }
-    
-    if (data.startDate && data.endDate && new Date(data.endDate) <= new Date(data.startDate)) {
-      errors.endDate = 'End date must be after start date';
-    }
-    
-    if (data.type === 'combo' && (!data.comboItems || data.comboItems.length === 0)) {
-      errors.comboItems = 'At least one combo item is required';
-    }
-    
-    return errors;
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information - unchanged */}
- <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
+    return (
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200">
           <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
             Basic Information
@@ -648,80 +697,124 @@ const handleSaveOffer = async (data) => {
             />
           </div>
         </div>
-      {/* Fixed Platform Selection */}
-      <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-2xl border border-indigo-200">
-        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-          Platform Availability
-        </h4>
-        <p className="text-sm text-gray-600 mb-4">
-          Select which platforms this offer should be available on
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* All Platforms Option */}
-          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-            isPlatformSelected('all')
-              ? 'border-indigo-500 bg-indigo-50 shadow-md'
-              : 'border-gray-200 bg-white hover:border-indigo-300'
-          }`}>
-            <input
-              type="checkbox"
-              checked={isPlatformSelected('all')}
-              onChange={() => handlePlatformChange('all')}
-              className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-indigo-600" />
-              <div>
-                <span className="text-sm font-semibold text-gray-800 block">All Platforms</span>
-                <span className="text-xs text-gray-500">Mobile & Web</span>
-              </div>
-            </div>
-          </label>
 
-          {/* Mobile Only Option */}
-          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-            isPlatformSelected('mobile')
-              ? 'border-blue-500 bg-blue-50 shadow-md'
-              : 'border-gray-200 bg-white hover:border-blue-300'
-          }`}>
-            <input
-              type="checkbox"
-              checked={isPlatformSelected('mobile')}
-              onChange={() => handlePlatformChange('mobile')}
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-5 h-5 text-blue-600" />
-              <div>
-                <span className="text-sm font-semibold text-gray-800 block">Mobile Only</span>
-                <span className="text-xs text-gray-500">App exclusive</span>
+        {/* Platform Selection */}
+        <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-2xl border border-indigo-200">
+          <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+            Platform Availability
+          </h4>
+          <p className="text-sm text-gray-600 mb-4">
+            Select which platforms this offer should be available on
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              isPlatformSelected('all')
+                ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-indigo-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={isPlatformSelected('all')}
+                onChange={() => handlePlatformChange('all')}
+                className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <span className="text-sm font-semibold text-gray-800 block">All Platforms</span>
+                  <span className="text-xs text-gray-500">Mobile & Web</span>
+                </div>
               </div>
-            </div>
-          </label>
+            </label>
 
-          {/* Web Only Option */}
-          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-            isPlatformSelected('web')
-              ? 'border-purple-500 bg-purple-50 shadow-md'
-              : 'border-gray-200 bg-white hover:border-purple-300'
-          }`}>
-            <input
-              type="checkbox"
-              checked={isPlatformSelected('web')}
-              onChange={() => handlePlatformChange('web')}
-              className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-            />
-            <div className="flex items-center gap-2">
-              <Monitor className="w-5 h-5 text-purple-600" />
-              <div>
-                <span className="text-sm font-semibold text-gray-800 block">Web Only</span>
-                <span className="text-xs text-gray-500">Website exclusive</span>
+            <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              isPlatformSelected('mobile')
+                ? 'border-blue-500 bg-blue-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-blue-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={isPlatformSelected('mobile')}
+                onChange={() => handlePlatformChange('mobile')}
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-blue-600" />
+                <div>
+                  <span className="text-sm font-semibold text-gray-800 block">Mobile Only</span>
+                  <span className="text-xs text-gray-500">App exclusive</span>
+                </div>
               </div>
-            </div>
-          </label>
+            </label>
+
+            <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+              isPlatformSelected('web')
+                ? 'border-purple-500 bg-purple-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-purple-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={isPlatformSelected('web')}
+                onChange={() => handlePlatformChange('web')}
+                className="w-5 h-5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              />
+              <div className="flex items-center gap-2">
+                <Monitor className="w-5 h-5 text-purple-600" />
+                <div>
+                  <span className="text-sm font-semibold text-gray-800 block">Web Only</span>
+                  <span className="text-xs text-gray-500">Website exclusive</span>
+                </div>
+              </div>
+            </label>
+          </div>
         </div>
+
+        {/* NEW: One-Time Per Device Section */}
+        <div className="bg-gradient-to-br from-rose-50 to-white p-6 rounded-2xl border border-rose-200">
+          <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+            Device Restrictions
+          </h4>
+          <div className="space-y-4">
+            <label className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${
+              formData.isOneTimePerDevice
+                ? 'border-rose-500 bg-rose-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-rose-300'
+            }`}>
+              <input
+                type="checkbox"
+                checked={formData.isOneTimePerDevice}
+                onChange={(e) => setFormData({ ...formData, isOneTimePerDevice: e.target.checked })}
+                className="w-5 h-5 rounded border-gray-300 text-rose-600 focus:ring-rose-500 mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-rose-600" />
+                  <span className="text-sm font-bold text-gray-900">One-Time Per Device</span>
+                  <span className="px-2 py-0.5 bg-rose-100 text-rose-700 text-xs font-semibold rounded-full">
+                    Exclusive
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Enable this to restrict the offer to one claim per device. Each device (mobile, tablet, or computer) can only claim this offer once. 
+                  Perfect for first-time customer offers and exclusive promotions.
+                </p>
+                {formData.isOneTimePerDevice && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-amber-800">
+                        <strong>Note:</strong> Once enabled, users who have already claimed this offer on their device will not see it in their offer list.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
         </div>
+
         {/* Offer Details */}
         <div className="bg-gradient-to-br from-purple-50 to-white p-6 rounded-2xl border border-purple-200">
           <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -934,7 +1027,7 @@ const handleSaveOffer = async (data) => {
           </div>
         </div>
 
-        {/* Applicability - Only show for non-combo offers */}
+        {/* Applicability */}
         {formData.type !== 'combo' && (
           <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-200">
             <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -1218,11 +1311,19 @@ const handleSaveOffer = async (data) => {
             </button>
           </div>
         </div>
+        
+        {/* Device ID Display */}
+        <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Smartphone className="w-4 h-4" />
+            <span>Your Device ID: <code className="px-2 py-1 bg-gray-100 rounded text-xs font-mono">{deviceId}</code></span>
+          </div>
+        </div>
       </div>
     );
   };
 
-  // Offers Grid
+  // Offers Grid with Device Claim Status
   const OffersGrid = () => {
     const getOfferTypeIcon = (type) => {
       switch(type) {
@@ -1260,6 +1361,7 @@ const handleSaveOffer = async (data) => {
       }
       return <Globe className="w-4 h-4 text-gray-600" />;
     };
+
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
