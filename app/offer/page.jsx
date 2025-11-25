@@ -41,6 +41,9 @@ import {
   Award,
   Shield,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import AdminShell from '../component/AdminShell';
+import { adminNavigation } from '../component/navigationConfig';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
 
@@ -343,6 +346,7 @@ const ImageUpload = ({ value, onChange, className = "" }) => {
 };
 
 const Offers = () => {
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [loading, setLoading] = useState(false);
@@ -358,45 +362,6 @@ const Offers = () => {
   useEffect(() => {
   setDeviceId(getDeviceId());
 }, []);
-const navigationItems = [
-    {
-      id: "dashboard",
-      name: "Dashboard",
-      icon: LayoutDashboard,
-      gradient: "from-blue-500 to-cyan-600"
-    },
-    {
-      id: "menu",
-      name: "Menu Items",
-      icon: Package,
-      gradient: "from-emerald-500 to-teal-600"
-    },
-    {
-      id: "offers",
-      name: "Offers & Deals",
-      icon: Percent,
-      gradient: "from-purple-600 to-pink-600"
-    },
-    {
-      id: "orders",
-      name: "Orders",
-      icon: ShoppingBag,
-      gradient: "from-orange-500 to-red-600"
-    },
-    {
-      id: "customers",
-      name: "Customers",
-      icon: Users,
-      gradient: "from-indigo-500 to-purple-600"
-    },
-    {
-      id: "settings",
-      name: "Settings",
-      icon: Settings,
-      gradient: "from-gray-600 to-gray-800"
-    }
-  ];
-
 
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -1473,8 +1438,66 @@ const navigationItems = [
     );
   };
 
+  const statusBadges = [
+    {
+      label: deviceId ? `Device ${deviceId.slice(-6)}` : 'Device not registered',
+      icon: <Smartphone className="h-3 w-3 text-slate-500" />,
+    },
+    {
+      label: `${offers.length} offers live`,
+      icon: <Percent className="h-3 w-3 text-slate-500" />,
+    },
+  ];
+
+  const handleSidebarNavigate = (item) => {
+    if (item.href && item.id !== 'offers') {
+      router.push(item.href);
+      return;
+    }
+
+    if (!item.href) {
+      router.push('/');
+    }
+  };
+
+  const bodyContent =
+    loading && offers.length === 0 ? (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading offers...</p>
+        </div>
+      </div>
+    ) : (
+      <>
+        <OfferFilters />
+        {offers.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-16 text-center">
+            <div className="max-w-2xl mx-auto">
+              <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Percent className="w-12 h-12 text-purple-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">No Offers Yet</h3>
+              <p className="text-gray-600 mb-6">
+                Start creating amazing offers to boost your sales and attract more customers.
+              </p>
+              <button
+                onClick={() => openModal('offer')}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 font-semibold shadow-lg mx-auto"
+              >
+                <Plus className="w-5 h-5" />
+                Create Your First Offer
+              </button>
+            </div>
+          </div>
+        ) : (
+          <OffersGrid />
+        )}
+      </>
+    );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+    <>
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
@@ -1490,141 +1513,24 @@ const navigationItems = [
         type={notificationDialog.type}
       />
 
-      <header className="bg-white shadow-xl border-b border-gray-100 sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
-           <div className="flex items-center justify-between px-8 py-6">
-             <div className="flex items-center gap-6">
-               <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-3 rounded-2xl shadow-lg">
-                 <Package className="w-8 h-8 text-white" />
-               </div>
-               <div>
-                 <h1 className="text-3xl font-bold text-gray-900">Restaurant Admin</h1>
-                 <p className="text-sm text-gray-600 font-medium">Manage your restaurant efficiently</p>
-               </div>
-             </div>
-             <div className="flex items-center gap-6">
-               <button className="relative p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-2xl transition-all duration-200">
-                 <Bell className="w-6 h-6" />
-                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                   <span className="text-xs text-white font-bold">3</span>
-                 </div>
-               </button>
-               <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-4 py-3">
-                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-                   <span className="text-sm font-bold text-white">AD</span>
-                 </div>
-                 <div>
-                   <span className="text-sm font-bold text-gray-900">Admin User</span>
-                   <p className="text-xs text-gray-500">Restaurant Owner</p>
-                 </div>
-                 <ChevronDown className="w-4 h-4 text-gray-400" />
-               </div>
-               <button className="p-3 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all duration-200">
-                 <LogOut className="w-6 h-6" />
-               </button>
-             </div>
+      <AdminShell
+        title="Offers & campaigns"
+        subtitle="Create and supervise promotions across every channel."
+        statusBadges={statusBadges}
+        showSearch={false}
+        sidebarItems={adminNavigation}
+        activeSidebarItem="offers"
+        onSidebarNavigate={handleSidebarNavigate}
+      >
+        {bodyContent}
+      </AdminShell>
 
-           </div>
-         
-         </header>
-   
-         <div className="flex">
-           <nav className="w-80 bg-white shadow-xl h-[calc(100vh-97px)] sticky top-[97px] border-r border-gray-100 backdrop-blur-md bg-opacity-90">
-             <div className="p-8">
-               <div className="space-y-3">
-                 {navigationItems.map((item) => (
-           <button
-             key={item.id}
-             onClick={() => {
-               if (item.id != "offers") {
-                 router.push("/"); // Navigate to /offers page
-               } else {
-                 setActiveTab(item.id);
-               }
-             }}
-             className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-left transition-all duration-300 font-semibold ${
-               activeTab === item.id
-                 ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg transform scale-[1.02]`
-                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:scale-[1.01]"
-             }`}
-           >
-             <div
-               className={`p-2 rounded-xl ${
-                 activeTab === item.id ? "bg-gray-900 bg-opacity-20" : "bg-gray-100"
-               }`}
-             >
-               <item.icon className="w-5 h-5" />
-             </div>
-             <span>{item.name}</span>
-           </button>
-         ))}
-       
-               </div>
-               <div className="mt-10 p-6 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-2xl border border-blue-200">
-                 <h3 className="font-bold text-gray-900 mb-4">Quick Stats</h3>
-                 <div className="space-y-3">
-                   <div className="flex justify-between items-center">
-                     <span className="text-sm text-gray-600">Today's Orders</span>
-                     <span className="font-bold text-blue-600">24</span>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-sm text-gray-600">Revenue</span>
-                     <span className="font-bold text-emerald-600">$1,240</span>
-                   </div>
-                   <div className="flex justify-between items-center">
-                     <span className="text-sm text-gray-600">Active Items</span>
-                     <span className="font-bold text-purple-600">{foodItems.length}</span>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           </nav>
-                 {/* Main Content */}
-      <main className="max-w-[1800px] mx-auto px-6 lg:px-8 py-8">
-        {loading && offers.length === 0 ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">Loading offers...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <OfferFilters />
-            {offers.length === 0 ? (
-              <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-16 text-center">
-                <div className="max-w-9xl mx-auto">
-                  <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Percent className="w-12 h-12 text-purple-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">No Offers Yet</h3>
-                  <p className="text-gray-600 mb-6">
-                    Start creating amazing offers to boost your sales and attract more customers.
-                  </p>
-                  <button
-                    onClick={() => openModal('offer')}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 font-semibold shadow-lg mx-auto"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Create Your First Offer
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <OffersGrid />
-            )}
-          </>
-        )}
-      </main>
-         </div>
-    
-
-      {/* Modal */}
       {showModal && modalType === 'offer' && (
         <Modal title={`${editingItem ? 'Edit' : 'Create'} Offer`} size="max-w-4xl">
           <OfferForm />
         </Modal>
       )}
-    </div>
+    </>
   );
 };
 

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { Eye, EyeOff, Shield, Lock, Mail, AlertCircle, CheckCircle, Users, Settings, BarChart3, LogOut, Crown } from 'lucide-react';
+import { Eye, EyeOff, Shield, Lock, Mail, AlertCircle, CheckCircle, Users, Settings, BarChart3, LogOut } from 'lucide-react';
 import RestaurantAdminDashboard from './component/dashoard';
 import Dashoard from './admin/page';
 
@@ -110,7 +110,7 @@ const useAuth = () => {
   return context;
 };
 
-// Login Component with FoodKing Theme
+// Login Component with new executive visual design
 const LoginPage = () => {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
@@ -191,138 +191,163 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen  flex items-center justify-center p-4">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 left-0 w-full h-full"></div>
-        <div 
-          className="absolute inset-0 " 
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f97316' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundSize: '60px 60px'
-          }}
-        ></div>
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
+      <div className="absolute inset-0">
+        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent" />
+        <div className="backdrop-grid" />
+        <div className="absolute left-1/3 top-1/4 h-72 w-72 -translate-x-1/2 rounded-full bg-fuchsia-500/30 blur-[150px]" />
+        <div className="absolute right-0 bottom-10 h-60 w-60 rounded-full bg-orange-500/20 blur-[180px]" />
       </div>
 
-      <div className="relative z-10 bg-white shadow-2xl rounded-3xl border border-orange-100 p-8 w-full max-w-lg">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-[#FF005E] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <Crown className="w-10 h-10 text-white bg-[#FF005E]" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Saorely Admin</h1>
-          <p className="text-gray-900 font-medium"> Administrator Access</p>
-          <div className="w-16 h-1 bg-[#FF005E] rounded-full mx-auto mt-3"></div>
-        </div>
-
-        {/* Alert Messages */}
-        {message.text && (
-          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
-            message.type === 'error' 
-              ? 'bg-red-50 border border-red-200 text-red-700' 
-              : 'bg-green-50 border border-green-200 text-green-700'
-          }`}>
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">{message.text}</span>
-          </div>
-        )}
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email Field */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className={`w-full bg-gray-50 border-2 ${
-                  errors.email ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-orange-500'
-                } rounded-xl pl-12 pr-4 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-orange-500/20 transition-all duration-200`}
-                placeholder="Enter your email address"
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
-            {errors.email && (
-              <p className="text-red-600 text-sm flex items-center gap-2 mt-2">
-                <AlertCircle className="w-4 h-4" />
-                {errors.email}
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 lg:grid lg:grid-cols-[1.1fr,0.9fr] lg:items-stretch lg:px-10">
+        <section className="glass-panel bg-slate-900/70 p-8 text-white shadow-2xl">
+          <div className="flex h-full flex-col justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-slate-200">Saorely Admin</p>
+              <h1 className="mt-6 text-4xl font-semibold leading-tight">Command center for culinary operations</h1>
+              <p className="mt-4 text-base text-slate-200/80">
+                Monitor performance, update menus and resolve orders with a polished control room built for decisive teams.
               </p>
-            )}
-          </div>
-
-          {/* Password Field */}
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className={`w-full bg-gray-50 border-2 ${
-                  errors.password ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-orange-500'
-                } rounded-xl pl-12 pr-14 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-orange-500/20 transition-all duration-200`}
-                placeholder="Enter your password"
-                disabled={isLoading}
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 focus:outline-none"
-                disabled={isLoading}
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+              <ul className="mt-8 space-y-4 text-sm text-slate-200/90">
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-emerald-300" />
+                  Enterprise-grade security with MFA-ready workflows
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-emerald-300" />
+                  Real-time visibility into orders, inventory and offers
+                </li>
+                <li className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-emerald-300" />
+                  Designed for distributed teams with localized operations
+                </li>
+              </ul>
             </div>
-            {errors.password && (
-              <p className="text-red-600 text-sm flex items-center gap-2 mt-2">
-                <AlertCircle className="w-4 h-4" />
-                {errors.password}
-              </p>
-            )}
+
+            <div className="mt-10 grid grid-cols-2 gap-4 text-slate-100">
+              {[
+                { label: 'Average response', value: '2m 14s' },
+                { label: 'Markets online', value: '12 regions' },
+                { label: 'Active offers', value: '08 campaigns' },
+                { label: 'Fulfillment rate', value: '99.2%' },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <p className="text-xs uppercase tracking-wide text-slate-200/70">{stat.label}</p>
+                  <p className="mt-2 text-lg font-semibold">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="glass-panel bg-white p-8 text-slate-900 shadow-2xl">
+          <div className="text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-orange-500 text-white shadow-lg">
+              <Shield className="h-7 w-7" />
+            </div>
+            <h2 className="text-3xl font-semibold">Secure Admin Sign-In</h2>
+            <p className="mt-3 text-sm text-slate-500">Use your corporate Saorely credentials to continue.</p>
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading || !formData.email || !formData.password}
-            className="w-full bg-[#FF005E] hover:from-orange-600 hover:to-red-600 text-white py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Authenticating...
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-2">
-                <Shield className="w-5 h-5" />
-                Sign In to Dashboard
-              </div>
-            )}
-          </button>
-        </form>
+          {message.text && (
+            <div
+              className={`mt-6 flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm ${
+                message.type === 'error'
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              }`}
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <span>{message.text}</span>
+            </div>
+          )}
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-500 text-sm">
-            Secure access for authorized Administrators only
-          </p>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-xs text-gray-400">System Online</span>
+          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300" />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="admin@saorely.com"
+                  autoComplete="email"
+                  disabled={isLoading}
+                  className={`w-full rounded-2xl border px-5 py-4 pl-12 text-sm font-medium text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-slate-900/60 ${
+                    errors.email ? 'border-red-300 ring-red-200' : 'border-slate-200 bg-slate-50'
+                  }`}
+                />
+              </div>
+              {errors.email && (
+                <p className="flex items-center gap-2 text-xs font-medium text-red-600">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.email}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-300" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  disabled={isLoading}
+                  className={`w-full rounded-2xl border px-5 py-4 pl-12 pr-14 text-sm font-medium text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-slate-900/60 ${
+                    errors.password ? 'border-red-300 ring-red-200' : 'border-slate-200 bg-slate-50'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-700"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="flex items-center gap-2 text-xs font-medium text-red-600">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.password}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !formData.email || !formData.password}
+              className="w-full rounded-2xl bg-slate-900 py-4 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-900/30 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-3">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Authenticating...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Enter dashboard
+                </div>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 space-y-3 text-center text-xs text-slate-500">
+            <p className="flex items-center justify-center gap-2">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+              Infrastructure status: Operational
+            </p>
+            <p>Having trouble accessing your account? Contact the platform owner.</p>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
@@ -330,16 +355,11 @@ const LoginPage = () => {
 
 // Loading Component
 const LoadingSpinner = () => (
-  <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-yellow-50 flex items-center justify-center">
-    <div className="text-center">
-      <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto mb-6"></div>
-      <div className="bg-white rounded-2xl shadow-lg p-6 max-w-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Saorely Admin</h3>
-        <p className="text-gray-600 text-sm">Initializing secure connection...</p>
-        <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full animate-pulse" style={{width: '75%'}}></div>
-        </div>
-      </div>
+  <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+    <div className="glass-panel bg-slate-900/70 p-10 text-center">
+      <div className="mx-auto mb-6 h-14 w-14 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+      <h3 className="text-lg font-semibold">Preparing Saorely Admin</h3>
+      <p className="mt-2 text-sm text-white/70">Initializing encrypted session...</p>
     </div>
   </div>
 );

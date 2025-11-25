@@ -1,2 +1,59 @@
 @import "tailwindcss";
 
+:root {
+  --surface: #f6f7fb;
+  --surface-muted: #eef2ff;
+  --text-primary: #0f172a;
+  --text-muted: #475569;
+  --card-border: rgba(15, 23, 42, 0.08);
+  --card-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(15, 76, 129, 0.15), transparent 55%),
+    var(--surface);
+  color: var(--text-primary);
+}
+
+.glass-panel {
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.soft-shadow {
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.12);
+}
+
+.backdrop-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 0);
+  background-size: 24px 24px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 999px;
+}
+

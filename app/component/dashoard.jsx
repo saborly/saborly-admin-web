@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -46,6 +46,58 @@ import { useDebounce } from 'use-debounce';
 import { useRef } from 'react';
 import { MenuItemsGrid } from './MenuItemsSection';
 import { OrdersGrid } from './OrdersSection';
+import AdminShell from './AdminShell';
+import { adminNavigation } from './navigationConfig';
+
+const languages = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'ca', label: 'Català' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'fr', label: 'Français' }, // Added French
+];
+
+const quickHighlightsTemplate = (stats, formatCurrencyFn) => ([
+  {
+    label: 'Monthly revenue',
+    value: formatCurrencyFn(stats.revenue.current || 0),
+    hint: `${stats.revenue.period || 'month'} • +${stats.revenue.growth || 0}%`,
+  },
+  {
+    label: 'Orders this week',
+    value: stats.orders.current?.toLocaleString() || '0',
+    hint: `${stats.orders.period || 'week'} • +${stats.orders.growth || 0}%`,
+  },
+  {
+    label: 'Active customers',
+    value: stats.customers.current?.toLocaleString() || '0',
+    hint: `${stats.customers.period || 'month'} • +${stats.customers.growth || 0}%`,
+  },
+  {
+    label: 'Live offers',
+    value: stats.activeOffers.current?.toString().padStart(2, '0') || '00',
+    hint: `Now running • +${stats.activeOffers.growth || 0}%`,
+  },
+]);
+
+const panelShellClass = 'glass-panel rounded-3xl border border-white/70 bg-white/95 shadow-xl';
+const sectionHeadingClass = 'text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400';
+const inputBaseClass =
+  'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10 outline-none transition disabled:bg-slate-50 disabled:text-slate-400';
+const primaryButtonClass =
+  'inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-slate-900 text-white hover:bg-slate-800 focus-visible:outline-slate-900 disabled:opacity-50 disabled:cursor-not-allowed';
+const secondaryButtonClass =
+  'inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-slate-300';
+const ghostButtonClass =
+  'inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 text-slate-500 hover:bg-slate-100 focus-visible:outline-slate-300';
+const highlightIconMap = {
+  'Monthly revenue': Euro,
+  'Orders this week': ShoppingBag,
+  'Active customers': Users,
+  'Live offers': Percent,
+};
+const statusChipClass =
+  'inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm';
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
@@ -1076,6 +1128,416 @@ const loadOffers = async (params = {}) => {
     return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
   }, []);
 
+  const quickHighlights = useMemo(
+    () => quickHighlightsTemplate(dashboardStats, formatCurrency),
+    [dashboardStats, formatCurrency]
+  );
+
+  const opsFocus = useMemo(() => {
+    const inactiveOffers = offers.filter((offer) => !offer.isActive).length;
+    return [
+      {
+        title: 'Menu coverage',
+        metric: `${categories.length} categories`,
+        detail: `${foodItemsPagination.totalItems || foodItems.length} published items`,
+        tone: 'emerald',
+      },
+      {
+        title: 'Orders in flight',
+        metric: `${orderPagination.totalOrders || orders.length} active`,
+        detail: 'Maintain SLA under 30 min',
+        tone: 'sky',
+      },
+      {
+        title: 'Campaign hygiene',
+        metric: inactiveOffers ? `${inactiveOffers} pending` : 'All live',
+        detail: `${offers.length} total promotions`,
+        tone: inactiveOffers ? 'amber' : 'slate',
+      },
+    ];
+  }, [categories.length, foodItems.length, foodItemsPagination.totalItems, orderPagination.totalOrders, orders.length, offers]);
+
+  const statusBadges = [
+    { label: 'System online', icon: <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /> },
+    {
+      label: orders[0]?.createdAt ? `Last order • ${formatDate(orders[0].createdAt)}` : 'Awaiting first order',
+      icon: <span className="h-2 w-2 rounded-full bg-slate-300" />,
+    },
+  ];
+
+  const headerHighlights = (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {quickHighlights.map((highlight) => {
+          const Icon = highlightIconMap[highlight.label] || TrendingUp;
+          return (
+            <div key={highlight.label} className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide text-slate-400">{highlight.label}</p>
+                <span className="rounded-xl bg-slate-100 p-2 text-slate-600">
+                  <Icon className="h-4 w-4" />
+                </span>
+              </div>
+              <p className="mt-3 text-2xl font-semibold text-slate-900">{highlight.value}</p>
+              <p className="text-xs font-medium text-slate-500">{highlight.hint}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {opsFocus.map((focus) => (
+          <div key={focus.title} className="rounded-2xl border border-slate-100 bg-white/80 p-4 text-sm text-slate-600 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-slate-900">{focus.title}</p>
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  focus.tone === 'emerald'
+                    ? 'bg-emerald-400'
+                    : focus.tone === 'sky'
+                    ? 'bg-sky-400'
+                    : focus.tone === 'amber'
+                    ? 'bg-amber-400'
+                    : 'bg-slate-300'
+                }`}
+              />
+            </div>
+            <p className="mt-2 text-base font-semibold text-slate-900">{focus.metric}</p>
+            <p>{focus.detail}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
+  // Render different content based on active tab
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <div className="space-y-10">
+            <DashboardStats />
+
+            {/* Recent Orders */}
+            <div className={`${panelShellClass} p-8`}>
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Recent Orders</h2>
+                  <p className="text-sm text-gray-600 mt-1">Latest customer orders</p>
+                </div>
+                <button
+                  onClick={() => setActiveTab('orders')}
+                  className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-2 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all"
+                >
+                  View All <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                {orders.slice(0, 5).map((order) => (
+                  <div
+                    key={order._id}
+                    className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-white rounded-2xl border border-gray-100 hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-2xl shadow-lg">
+                        <ShoppingBag className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900">{order.orderNumber || `Order #${order._id?.slice(-6)}`}</p>
+                        <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                          <Users className="w-4 h-4" />
+                          {order.userId?.fullName || order.customerName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-lg text-gray-900">{formatCurrency(order.total)}</p>
+                      <span
+                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        {order.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {[
+                {
+                  title: 'Manage Categories',
+                  description: 'Add or edit menu groupings',
+                  icon: Grid3X3,
+                  action: () => setActiveTab('categories'),
+                },
+                {
+                  title: 'Monitor Orders',
+                  description: 'Track fulfilment and SLAs',
+                  icon: ShoppingBag,
+                  action: () => setActiveTab('orders'),
+                },
+                {
+                  title: 'Banners & Offers',
+                  description: 'Refresh hero slots and promos',
+                  icon: ImageIcon,
+                  action: () => setActiveTab('banners'),
+                },
+              ].map((action, index) => (
+                <button
+                  type="button"
+                  key={action.title}
+                  onClick={action.action}
+                  className={`${panelShellClass} flex h-full flex-col items-start gap-4 rounded-3xl p-6 text-left transition hover:-translate-y-1 hover:shadow-2xl`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="rounded-2xl bg-slate-900/5 p-3 text-slate-900">
+                      <action.icon className="h-5 w-5" />
+                    </div>
+                    <ChevronDown className="h-4 w-4 rotate-[-90deg] text-slate-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">{action.title}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{action.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      case 'banners':
+        return (
+          <DataGrids
+            data={banners}
+            title="Banners"
+            onEdit={(item) => openModal('banner', item)}
+            onDelete={handleDelete}
+            onAdd={() => openModal('banner')}
+            showSearch={false}
+            columns={[
+              {
+                header: 'Image',
+                key: 'imageUrl',
+                render: (item) => (
+                  <div className="relative">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-32 h-16 object-cover rounded-2xl border-2 border-gray-100"
+                    />
+                  </div>
+                ),
+              },
+              {
+                header: 'Title',
+                key: 'title',
+                render: (item) => (
+                  <div>
+                    <p className="font-bold text-gray-900">{item.title}</p>
+                    {item.description && <p className="text-xs text-gray-500">{item.description}</p>}
+                  </div>
+                ),
+              },
+              {
+                header: 'Category',
+                key: 'category',
+                render: (item) => (
+                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-200">
+                    {item.category?.name || item.category || 'None'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Order',
+                key: 'order',
+                render: (item) => (
+                  <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold">
+                    {item.order || 0}
+                  </span>
+                ),
+              },
+              {
+                header: 'Schedule',
+                key: 'schedule',
+                render: (item) => (
+                  <div className="text-sm">
+                    <p className="text-gray-900">{item.startDate ? formatDate(item.startDate) : 'No start date'}</p>
+                    <p className="text-xs text-gray-500">to {item.endDate ? formatDate(item.endDate) : 'No end date'}</p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Status',
+                key: 'isActive',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
+                      item.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                    }`}
+                  >
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        );
+      case 'categories':
+        return (
+          <DataGrids
+            data={categories}
+            title="Categories"
+            onEdit={(item) => openModal('category', item)}
+            onDelete={handleDelete}
+            onAdd={() => openModal('category')}
+            showSearch={false}
+            columns={[
+              {
+                header: 'Image',
+                key: 'imageUrl',
+                render: (item) => (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name || 'Unnamed'}
+                    className="w-16 h-16 object-cover rounded-xl"
+                  />
+                ),
+              },
+              {
+                header: 'Name',
+                key: 'name',
+                render: (item) => (
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {item.name || 'Unnamed'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {item.description || 'No description'}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Icon',
+                key: 'icon',
+                render: (item) => <span className="text-2xl">{item.icon}</span>,
+              },
+              {
+                header: 'Status',
+                key: 'isActive',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                  >
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Sort Order',
+                key: 'sortOrder',
+                render: (item) => item.sortOrder,
+              },
+            ]}
+          />
+        );
+      case 'menu-items':
+        return (
+          <MenuItemsGrid
+            onEdit={(item) => openModal('menu-item', item)}
+            onAdd={() => openModal('menu-item')}
+            onDelete={(id) => handleDelete(id, 'food-item')}
+            apiService={apiService}
+            language={selectedLanguage}
+          />
+        );
+      case 'orders':
+        return (
+          <OrdersGrid
+            onView={(order) => openModal('order-details', order)}
+            apiService={apiService}
+            language={selectedLanguage}
+          />
+        );
+      case 'offers':
+        return (
+          <DataGrids
+            data={offers}
+            title="Offers"
+            onEdit={(item) => openModal('offer', item)}
+            onDelete={handleDelete}
+            onAdd={() => openModal('offer')}
+            showSearch={false}
+            pagination={pagination}
+            columns={[
+              {
+                header: 'Title',
+                key: 'title',
+                render: (item) => (
+                  <div>
+                    <p className="font-semibold text-gray-900">{item.title}</p>
+                    <p className="text-xs text-gray-500">{item.description}</p>
+                  </div>
+                ),
+              },
+              {
+                header: 'Discount',
+                key: 'discountValue',
+                render: (item) => (
+                  <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-semibold border border-amber-200">
+                    {item.discountType === 'percentage' ? `${item.discountValue}%` : formatCurrency(item.discountValue)}
+                  </span>
+                ),
+              },
+              {
+                header: 'Status',
+                key: 'isActive',
+                render: (item) => (
+                  <span
+                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                      }`}
+                  >
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Valid Until',
+                key: 'validUntil',
+                render: (item) => (
+                  <div className="text-sm">
+                    <p className="text-gray-900">{item.validUntil ? formatDate(item.validUntil) : 'No expiry'}</p>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        );
+      case 'settings':
+        return (
+          <SettingsForm />
+        );
+      default:
+        return <div>Content not found</div>;
+    }
+  };
+
+  const handleSidebarNavigate = (item) => {
+    if (item.href) {
+      router.push(item.href);
+      return;
+    }
+    setActiveTab(item.id);
+  };
+
   // Modal management
   const openModal = useCallback((type, item = null) => {
     setModalType(type);
@@ -1223,17 +1685,6 @@ const loadOffers = async (params = {}) => {
   };
 
   // Navigation items
-  const navigationItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, gradient: 'from-blue-500 to-indigo-600' },
-    { id: 'categories', name: 'Categories', icon: Grid3X3, gradient: 'from-emerald-500 to-teal-600' },
-    { id: 'menu-items', name: 'Menu Items', icon: MenuIcon, gradient: 'from-orange-500 to-red-600' },
-    { id: 'offers', name: 'Offers', icon: Percent, gradient: 'from-purple-500 to-pink-600' },
-    { id: 'orders', name: 'Orders', icon: ShoppingBag, gradient: 'from-cyan-500 to-blue-600' },
-    { id: 'contact', name: 'Contact Us', icon: MessageSquare, gradient: 'from-rose-500 to-pink-600' },
-    { id: 'banners', name: 'Banners', icon: ImageIcon, gradient: 'from-indigo-500 to-purple-600' },
-    { id: 'settings', name: 'Settings', icon: Settings, gradient: 'from-gray-500 to-gray-700' },
-  ];
-
   // Enhanced Dashboard Stats Component
   const DashboardStats = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
@@ -2487,255 +2938,244 @@ const loadOffers = async (params = {}) => {
 
     return (
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Restaurant Info */}
-        <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            Restaurant Information
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`${panelShellClass} p-6 space-y-6`}>
+          <div>
+            <p className={sectionHeadingClass}>Restaurant information</p>
+            <h4 className="mt-1 text-xl font-semibold text-slate-900">Brand identity</h4>
+            <p className="text-sm text-slate-500">Keep guest-facing details polished and up to date.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Restaurant Name</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Restaurant name</label>
               <input
                 type="text"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                className={`${inputBaseClass} mt-2`}
                 value={formData.restaurantName}
                 onChange={(e) => setFormData({ ...formData, restaurantName: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Contact Phone</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Contact phone</label>
               <input
                 type="tel"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+                className={`${inputBaseClass} mt-2`}
                 value={formData.contactPhone}
                 onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
               />
             </div>
           </div>
-          <div className="mt-6">
-            <label className="block text-sm font-semibold text-gray-800 mb-3">Address</label>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</label>
             <input
               type="text"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
+              className={`${inputBaseClass} mt-2`}
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
           </div>
-          <div className="mt-6">
-            <label className="block text-sm font-semibold text-gray-800 mb-3">Operating Hours</label>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Operating hours</label>
             <textarea
               rows="4"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none bg-white"
+              className={`${inputBaseClass} mt-2 resize-none`}
               value={formData.operatingHours}
               onChange={(e) => setFormData({ ...formData, operatingHours: e.target.value })}
             />
           </div>
         </div>
 
-        {/* Payment Settings */}
-        <div className="bg-gradient-to-br from-emerald-50 to-white p-6 rounded-2xl border border-emerald-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-            Payment Gateway Settings
-          </h4>
-          <div className="space-y-6">
+        <div className={`${panelShellClass} p-6 space-y-6`}>
+          <div>
+            <p className={sectionHeadingClass}>Payments</p>
+            <h4 className="mt-1 text-xl font-semibold text-slate-900">Payment gateway</h4>
+            <p className="text-sm text-slate-500">Credentials are encrypted and never shared with staff.</p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Gateway</label>
+            <select
+              className={`${inputBaseClass} mt-2`}
+              value={formData.paymentGateway}
+              onChange={(e) => setFormData({ ...formData, paymentGateway: e.target.value })}
+            >
+              <option value="stripe">Stripe</option>
+              <option value="paypal">PayPal</option>
+              <option value="square">Square</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-3">Payment Gateway</label>
-              <select
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white"
-                value={formData.paymentGateway}
-                onChange={(e) => setFormData({ ...formData, paymentGateway: e.target.value })}
-              >
-                <option value="stripe">Stripe</option>
-                <option value="paypal">PayPal</option>
-                <option value="square">Square</option>
-              </select>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">API key</label>
+              <input
+                type="password"
+                className={`${inputBaseClass} mt-2 font-mono`}
+                value={formData.apiKey}
+                onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                placeholder="sk_live_..."
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-3">API Key</label>
-                <input
-                  type="password"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white font-mono"
-                  value={formData.apiKey}
-                  onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
-                  placeholder="sk_live_..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-3">Secret Key</label>
-                <input
-                  type="password"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-white font-mono"
-                  value={formData.secretKey}
-                  onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
-                  placeholder="*****"
-                />
-              </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Secret key</label>
+              <input
+                type="password"
+                className={`${inputBaseClass} mt-2 font-mono`}
+                value={formData.secretKey}
+                onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
+                placeholder="••••••••"
+              />
             </div>
           </div>
         </div>
 
-        {/* Delivery Settings */}
-        <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-2xl border border-indigo-200">
-          <h4 className="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-            Delivery Settings
-          </h4>
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <label className="block text-sm font-semibold text-gray-800">Delivery Service</label>
-                <p className="text-xs text-gray-600">
-                  Enable or disable delivery service for your restaurant
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm font-medium ${formData.deliverySettings.isDeliveryEnabled ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {formData.deliverySettings.isDeliveryEnabled ? 'Enabled' : 'Disabled'}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={formData.deliverySettings.isDeliveryEnabled}
-                  onChange={(e) => handleToggleDelivery(e.target.checked)}
-                  disabled={toggling}
-                  className="relative h-6 w-12 rounded-full border border-gray-300 bg-gray-200 transition-all duration-200 focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+        <div className={`${panelShellClass} p-6 space-y-6`}>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className={sectionHeadingClass}>Logistics</p>
+              <h4 className="text-xl font-semibold text-slate-900">Delivery settings</h4>
+              <p className="text-sm text-slate-500">Control coverage, SLAs and customer messaging.</p>
             </div>
-            {!formData.deliverySettings.isDeliveryEnabled && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                  <p className="text-sm text-red-600">
-                    Delivery is currently disabled. Customers can only place pickup orders.
-                  </p>
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-800">Default Delivery Fee (€)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.deliverySettings.defaultDeliveryFee}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      deliverySettings: {
-                        ...formData.deliverySettings,
-                        defaultDeliveryFee: parseFloat(e.target.value) || 0,
-                      },
-                    })
-                  }
-                  disabled={!formData.deliverySettings.isDeliveryEnabled}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-800">Free Delivery Threshold (€)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.deliverySettings.freeDeliveryThreshold}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      deliverySettings: {
-                        ...formData.deliverySettings,
-                        freeDeliveryThreshold: parseFloat(e.target.value) || 0,
-                      },
-                    })
-                  }
-                  disabled={!formData.deliverySettings.isDeliveryEnabled}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500">Orders above this amount get free delivery</p>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-800">Delivery Radius (km)</label>
-                <input
-                  type="number"
-                  step="1"
-                  min="1"
-                  value={formData.deliverySettings.deliveryRadius}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      deliverySettings: {
-                        ...formData.deliverySettings,
-                        deliveryRadius: parseInt(e.target.value) || 1,
-                      },
-                    })
-                  }
-                  disabled={!formData.deliverySettings.isDeliveryEnabled}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-800">Estimated Delivery Time (min)</label>
-                <input
-                  type="number"
-                  step="5"
-                  min="10"
-                  value={formData.deliverySettings.estimatedDeliveryTime}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      deliverySettings: {
-                        ...formData.deliverySettings,
-                        estimatedDeliveryTime: parseInt(e.target.value) || 10,
-                      },
-                    })
-                  }
-                  disabled={!formData.deliverySettings.isDeliveryEnabled}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
-                />
-              </div>
+            <div className="flex items-center gap-3">
+              <span
+                className={`text-sm font-semibold ${
+                  formData.deliverySettings.isDeliveryEnabled ? 'text-emerald-600' : 'text-slate-500'
+                }`}
+              >
+                {formData.deliverySettings.isDeliveryEnabled ? 'Delivery enabled' : 'Delivery disabled'}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleToggleDelivery(!formData.deliverySettings.isDeliveryEnabled)}
+                disabled={toggling}
+                className={`${secondaryButtonClass} px-4 py-2`}
+              >
+                {toggling ? 'Updating...' : formData.deliverySettings.isDeliveryEnabled ? 'Disable' : 'Enable'}
+              </button>
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-800">
-                Disabled Message
-                <span className="text-xs text-gray-500 ml-2">
-                  (Shown to customers when delivery is disabled)
-                </span>
-              </label>
-              <textarea
-                rows={3}
-                maxLength={200}
-                value={formData.deliverySettings.disabledMessage}
+          </div>
+          {!formData.deliverySettings.isDeliveryEnabled && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
+              <p>Customers currently see only pickup options until delivery is re-enabled.</p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Default delivery fee (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className={`${inputBaseClass} mt-2`}
+                value={formData.deliverySettings.defaultDeliveryFee}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     deliverySettings: {
                       ...formData.deliverySettings,
-                      disabledMessage: e.target.value,
+                      defaultDeliveryFee: parseFloat(e.target.value) || 0,
                     },
                   })
                 }
-                placeholder="Enter message for customers when delivery is unavailable"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
               />
-              <p className="text-xs text-gray-500">
-                {formData.deliverySettings.disabledMessage.length}/200 characters
-              </p>
             </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Free delivery threshold (€)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className={`${inputBaseClass} mt-2`}
+                value={formData.deliverySettings.freeDeliveryThreshold}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      freeDeliveryThreshold: parseFloat(e.target.value) || 0,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+              />
+              <p className="mt-1 text-xs text-slate-500">Orders above this value are delivered for free.</p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Delivery radius (km)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                className={`${inputBaseClass} mt-2`}
+                value={formData.deliverySettings.deliveryRadius}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      deliveryRadius: parseInt(e.target.value) || 1,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Estimated delivery time (min)</label>
+              <input
+                type="number"
+                step="5"
+                min="10"
+                className={`${inputBaseClass} mt-2`}
+                value={formData.deliverySettings.estimatedDeliveryTime}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    deliverySettings: {
+                      ...formData.deliverySettings,
+                      estimatedDeliveryTime: parseInt(e.target.value) || 10,
+                    },
+                  })
+                }
+                disabled={!formData.deliverySettings.isDeliveryEnabled}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Disabled message
+              <span className="ml-1 text-[10px] font-normal lowercase tracking-normal text-slate-400">
+                shown to guests when delivery is offline
+              </span>
+            </label>
+            <textarea
+              rows={3}
+              maxLength={200}
+              className={`${inputBaseClass} mt-2`}
+              value={formData.deliverySettings.disabledMessage}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  deliverySettings: {
+                    ...formData.deliverySettings,
+                    disabledMessage: e.target.value,
+                  },
+                })
+              }
+              placeholder="Delivery is temporarily unavailable. Please select pickup."
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              {formData.deliverySettings.disabledMessage.length}/200 characters
+            </p>
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 flex items-center gap-3 font-semibold transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200"
-          >
-            {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-            <Save className="w-5 h-5" />
-            <span>Save Settings</span>
+        <div className="flex items-center justify-end gap-3">
+          <button type="button" className={ghostButtonClass} onClick={loadSettings} disabled={loading}>
+            Reset
+          </button>
+          <button type="submit" disabled={loading} className={primaryButtonClass}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            <Save className="h-4 w-4" />
+            <span>Save settings</span>
           </button>
         </div>
       </form>
@@ -2758,103 +3198,89 @@ const loadOffers = async (params = {}) => {
     };
 
     return (
-      <div className="bg-white rounded-3xl shadow-lg border-0 overflow-hidden">
-        <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-          <div className="flex justify-between items-center mb-6">
+      <div className={`${panelShellClass} overflow-hidden`}>
+        <div className="border-b border-slate-100 bg-white/80 px-6 py-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-              <p className="text-sm text-gray-600 mt-1">Manage your {title.toLowerCase()}</p>
+              <p className={sectionHeadingClass}>{title}</p>
+              <p className="text-sm text-slate-500">Manage {title.toLowerCase()} with clear audit trails.</p>
             </div>
             {onAdd && (
-              <button
-                onClick={() => onAdd()}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-2xl hover:from-blue-700 hover:to-indigo-700 flex items-center gap-3 transition-all duration-200 hover:scale-[0.98] shadow-lg shadow-blue-200 font-semibold"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Add {title.slice(0, -1)}</span>
+              <button onClick={onAdd} className={primaryButtonClass}>
+                <Plus className="h-4 w-4" />
+                Add {title.endsWith('s') ? title.slice(0, -1) : title}
               </button>
             )}
           </div>
-          
-          {/* Search Section - Only for menu-items and orders */}
           {showSearch && (
-            <div className="flex items-center gap-4 mt-4">
-              <div className="relative flex-1 max-w-md">
-                <SearchInput
-                  placeholder={`Search ${title.toLowerCase()}...`}
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[240px]">
+                <SearchInput placeholder={`Search ${title.toLowerCase()}...`} value={searchTerm} onChange={setSearchTerm} />
                 {isSearching && (
-                  <div className="absolute right-12 top-1/2 -translate-y-1/2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  </div>
+                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
                 )}
               </div>
               {searchTerm && (
-                <button 
-                  className="p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-2xl transition-all duration-200"
-                  onClick={handleClearSearch}
-                  title="Clear search"
-                >
-                  <RefreshCw className="w-5 h-5" />
+                <button className={secondaryButtonClass} onClick={handleClearSearch} type="button">
+                  <RefreshCw className="h-4 w-4" />
+                  Reset
                 </button>
               )}
             </div>
           )}
         </div>
-        
+
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+          <table className="min-w-full text-left">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 {columns.map((col, index) => (
-                  <th
-                    key={index}
-                    className="px-8 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wide"
-                  >
+                  <th key={index} className="px-6 py-3">
                     {col.header}
                   </th>
                 ))}
-                <th className="px-8 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wide">
-                  Actions
-                </th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody className="divide-y divide-slate-100 bg-white text-sm text-slate-900">
               {data.map((item, index) => (
-                <tr key={item._id || item.id || index} className="border-b border-gray-50 hover:bg-gray-50 transition-all duration-200">
+                <tr key={item._id || item.id || index} className="hover:bg-slate-50/70">
                   {columns.map((col, colIndex) => (
-                    <td key={colIndex} className="px-8 py-6 text-sm text-gray-900">
+                    <td key={colIndex} className="px-6 py-4 align-top">
                       {col.render ? col.render(item) : item[col.key]}
                     </td>
                   ))}
-                  <td className="px-8 py-6 text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      {actions && actions.map((action, actionIndex) => (
-                        <button
-                          key={actionIndex}
-                          onClick={() => action.onClick(item)}
-                          className={`p-2 rounded-xl hover:bg-${action.color}-50 transition-all duration-200 text-${action.color}-600 hover:text-${action.color}-900 hover:scale-110`}
-                          title={action.label}
-                        >
-                          <action.icon className="w-4 h-4" />
-                        </button>
-                      ))}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-1">
+                      {actions?.map((action, actionIndex) => {
+                        const baseActionClass =
+                          'p-2 rounded-xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-200';
+                        const actionStyle = action.className || 'text-slate-500 hover:text-slate-900 hover:bg-slate-100';
+                        return (
+                          <button
+                            key={`${action.label}-${actionIndex}`}
+                            onClick={() => action.onClick(item)}
+                            className={[baseActionClass, actionStyle].join(' ')}
+                            title={action.label}
+                          >
+                            <action.icon className="h-4 w-4" />
+                          </button>
+                        );
+                      })}
                       <button
                         onClick={() => onEdit(item)}
-                        className="p-2 rounded-xl text-blue-600 hover:text-blue-900 hover:bg-blue-50 transition-all duration-200 hover:scale-110"
+                        className="p-2 rounded-xl text-blue-600 transition hover:bg-blue-50 hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-100"
                         title="Edit"
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="h-4 w-4" />
                       </button>
                       {onDelete && (
                         <button
                           onClick={() => onDelete(item._id || item.id, title.toLowerCase().slice(0, -1))}
-                          className="p-2 rounded-xl text-red-600 hover:text-red-900 hover:bg-red-50 transition-all duration-200 hover:scale-110"
+                          className="p-2 rounded-xl text-red-600 transition hover:bg-red-50 hover:text-red-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-100"
                           title="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </div>
@@ -2863,405 +3289,83 @@ const loadOffers = async (params = {}) => {
               ))}
             </tbody>
           </table>
-          {pagination && pagination.totalPages > 1 && (
-            <div className="p-6 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Showing {data.length} of {pagination.totalOffers} {title.toLowerCase()}
-              </p>
-              <div className="flex items-center gap-4">
-                <button
-                  disabled={pagination.currentPage === 1}
-                  onClick={() => {
-                    switch (activeTab) {
-                      case 'menu-items':
-                        loadFoodItems({ page: pagination.currentPage - 1 });
-                        break;
-                      case 'orders':
-                        loadOrders({ page: pagination.currentPage - 1 });
-                        break;
-                      case 'offers':
-                        loadOffers({ page: pagination.currentPage - 1 });
-                        break;
-                    }
-                  }}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200"
-                >
-                  Previous
-                </button>
-                <span className="text-sm font-semibold text-gray-900">
-                  Page {pagination.currentPage} of {pagination.totalPages}
-                </span>
-                <button
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  onClick={() => {
-                    switch (activeTab) {
-                      case 'menu-items':
-                        loadFoodItems({ page: pagination.currentPage + 1 });
-                        break;
-                      case 'orders':
-                        loadOrders({ page: pagination.currentPage + 1 });
-                        break;
-                      case 'offers':
-                        loadOffers({ page: pagination.currentPage + 1 });
-                        break;
-                    }
-                  }}
-                  className="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl disabled:opacity-50 hover:bg-gray-200"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
           {data.length === 0 && (
-            <div className="text-center py-20 text-gray-500">
-              <div className="text-6xl mb-4">📦</div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No {title.toLowerCase()} found</h3>
-              <p className="text-sm text-gray-500">
-                {searchTerm ? 'Try adjusting your search terms' : `Get started by creating your first ${title.toLowerCase().slice(0, -1)}.`}
-              </p>
+            <div className="px-6 py-10 text-center text-sm text-slate-500">
+              <p className="font-semibold text-slate-700">No {title.toLowerCase()} found</p>
+              <p>{searchTerm ? 'Try refining your search terms.' : 'Create the first record to get started.'}</p>
             </div>
           )}
         </div>
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4 text-sm text-slate-500">
+            <p>
+              Showing {data.length} of {pagination.totalOffers || pagination.totalItems || pagination.totalOrders || 0}{' '}
+              {title.toLowerCase()}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={pagination.currentPage === 1}
+                onClick={() => {
+                  setPagination((prev) => ({ ...prev, currentPage: Math.max(1, (prev?.currentPage || 1) - 1) }));
+                  switch (activeTab) {
+                    case 'menu-items':
+                      loadFoodItems({ page: pagination.currentPage - 1 });
+                      break;
+                    case 'orders':
+                      loadOrders({ page: pagination.currentPage - 1 });
+                      break;
+                    case 'offers':
+                      loadOffers({ page: pagination.currentPage - 1 });
+                      break;
+                  }
+                }}
+                className={secondaryButtonClass}
+              >
+                Previous
+              </button>
+              <span className="text-slate-600">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={pagination.currentPage === pagination.totalPages}
+                onClick={() => {
+                  setPagination((prev) => ({ ...prev, currentPage: Math.min(pagination.totalPages, (prev?.currentPage || 1) + 1) }));
+                  switch (activeTab) {
+                    case 'menu-items':
+                      loadFoodItems({ page: pagination.currentPage + 1 });
+                      break;
+                    case 'orders':
+                      loadOrders({ page: pagination.currentPage + 1 });
+                      break;
+                    case 'offers':
+                      loadOffers({ page: pagination.currentPage + 1 });
+                      break;
+                  }
+                }}
+                className={secondaryButtonClass}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
-  // Render different content based on active tab
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div className="space-y-10">
-            <DashboardStats />
-
-            {/* Recent Orders */}
-            <div className="bg-white rounded-3xl shadow-lg border-0 p-8">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Recent Orders</h2>
-                  <p className="text-sm text-gray-600 mt-1">Latest customer orders</p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('orders')}
-                  className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-2 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all"
-                >
-                  View All <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                {orders.slice(0, 5).map((order) => (
-                  <div
-                    key={order._id}
-                    className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-white rounded-2xl border border-gray-100 hover:shadow-md transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-2xl shadow-lg">
-                        <ShoppingBag className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-900">{order.orderNumber || `Order #${order._id?.slice(-6)}`}</p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
-                          <Users className="w-4 h-4" />
-                          {order.userId?.fullName || order.customerName}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg text-gray-900">{formatCurrency(order.total)}</p>
-                      <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getStatusColor(
-                          order.status
-                        )}`}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                {
-                  title: 'Manage Categories',
-                  description: 'Add or edit menu categories',
-                  icon: Grid3X3,
-                  gradient: 'from-emerald-500 to-teal-600',
-                  action: () => setActiveTab('categories')
-                },
-                {
-                  title: 'View Orders',
-                  description: 'Manage customer orders',
-                  icon: ShoppingBag,
-                  gradient: 'from-blue-500 to-cyan-600',
-                  action: () => setActiveTab('orders')
-                },
-                {
-                  title: 'Manage Banners',
-                  description: 'Control promotional banners',
-                  icon: ImageIcon,
-                  gradient: 'from-rose-500 to-pink-600',
-                  action: () => setActiveTab('banners')
-                },
-              ].map((action, index) => (
-                <div
-                  key={index}
-                  className={`bg-gradient-to-br ${action.gradient} p-8 rounded-3xl text-white cursor-pointer hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] relative overflow-hidden group`}
-                  onClick={action.action}
-                >
-                  <div className="relative">
-                    <action.icon className="w-10 h-10 mb-4" />
-                    <h3 className="text-xl font-bold mb-3">{action.title}</h3>
-                    <p className="text-white text-opacity-90 text-sm leading-relaxed">{action.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      case 'banners':
-        return (
-          <DataGrids
-            data={banners}
-            title="Banners"
-            onEdit={(item) => openModal('banner', item)}
-            onDelete={handleDelete}
-            onAdd={() => openModal('banner')}
-            showSearch={false}
-            columns={[
-              {
-                header: 'Image',
-                key: 'imageUrl',
-                render: (item) => (
-                  <div className="relative">
-                    <img
-                      src={item.imageUrl}
-                      alt={item.title}
-                      className="w-32 h-16 object-cover rounded-2xl border-2 border-gray-100"
-                    />
-                  </div>
-                ),
-              },
-              {
-                header: 'Title',
-                key: 'title',
-                render: (item) => (
-                  <div>
-                    <p className="font-bold text-gray-900">{item.title}</p>
-                    {item.description && <p className="text-xs text-gray-500">{item.description}</p>}
-                  </div>
-                ),
-              },
-              {
-                header: 'Category',
-                key: 'category',
-                render: (item) => (
-                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold border border-blue-200">
-                    {item.category?.name || item.category || 'None'}
-                  </span>
-                ),
-              },
-              {
-                header: 'Order',
-                key: 'order',
-                render: (item) => (
-                  <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold">
-                    {item.order || 0}
-                  </span>
-                ),
-              },
-              {
-                header: 'Schedule',
-                key: 'schedule',
-                render: (item) => (
-                  <div className="text-sm">
-                    <p className="text-gray-900">{item.startDate ? formatDate(item.startDate) : 'No start date'}</p>
-                    <p className="text-xs text-gray-500">to {item.endDate ? formatDate(item.endDate) : 'No end date'}</p>
-                  </div>
-                ),
-              },
-              {
-                header: 'Status',
-                key: 'isActive',
-                render: (item) => (
-                  <span
-                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
-                      }`}
-                  >
-                    {item.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                ),
-              },
-            ]}
-            actions={[
-              {
-                icon: RefreshCw,
-                label: 'Toggle Status',
-                color: 'purple',
-                onClick: async (item) => {
-                  try {
-                    await apiService.toggleBannerStatus(item._id);
-                    showNotificationDialog('Success!', 'Banner status updated successfully');
-                    loadData();
-                  } catch (error) {
-                    showNotificationDialog('Error', 'Error updating banner status: ' + error.message, 'error');
-                  }
-                },
-              },
-            ]}
-          />
-        );
-      case 'categories':
-        return (
-          <DataGrids
-            data={categories}
-            title="Categories"
-            onEdit={(item) => openModal('category', item)}
-            onDelete={handleDelete}
-            onAdd={() => openModal('category')}
-            showSearch={false}
-            columns={[
-              {
-                header: 'Image',
-                key: 'imageUrl',
-                render: (item) => (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name || 'Unnamed'}
-                    className="w-16 h-16 object-cover rounded-xl"
-                  />
-                ),
-              },
-              {
-                header: 'Name',
-                key: 'name',
-                render: (item) => (
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      {item.name || 'Unnamed'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {item.description || 'No description'}
-                    </p>
-                  </div>
-                ),
-              },
-              {
-                header: 'Icon',
-                key: 'icon',
-                render: (item) => <span className="text-2xl">{item.icon}</span>,
-              },
-              {
-                header: 'Status',
-                key: 'isActive',
-                render: (item) => (
-                  <span
-                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                      }`}
-                  >
-                    {item.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                ),
-              },
-              {
-                header: 'Sort Order',
-                key: 'sortOrder',
-                render: (item) => item.sortOrder,
-              },
-            ]}
-          />
-        );
-     // Inside RestaurantAdminDashboard (renderContent)
-case 'menu-items':
-  return (
-    <MenuItemsGrid
-      onEdit={(item) => openModal('menu-item', item)}
-      onAdd={() => openModal('menu-item')}
-      onDelete={(id) => handleDelete(id, 'food-item')}
-      apiService={apiService}
-      language={selectedLanguage}
-    />
+  const mainContent = loading ? (
+    <div className="glass-panel flex min-h-[320px] items-center justify-center border border-white/70 bg-white/90 p-8 shadow-xl">
+      <div className="text-center">
+        <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-blue-600" />
+        <p className="text-sm font-medium text-slate-500">Loading the latest operational data...</p>
+      </div>
+    </div>
+  ) : (
+    renderContent()
   );
-
-case 'orders':
-  return (
-    <OrdersGrid
-      onView={(order) => openModal('order-details', order)}
-      apiService={apiService}
-      language={selectedLanguage}
-    />
-  );
-      case 'offers':
-        return (
-          <DataGrids
-            data={offers}
-            title="Offers"
-            onEdit={(item) => openModal('offer', item)}
-            onDelete={handleDelete}
-            onAdd={() => openModal('offer')}
-            showSearch={false}
-            pagination={pagination}
-            columns={[
-              {
-                header: 'Title',
-                key: 'title',
-                render: (item) => (
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.title}</p>
-                    <p className="text-xs text-gray-500">{item.description}</p>
-                  </div>
-                ),
-              },
-              {
-                header: 'Discount',
-                key: 'discountValue',
-                render: (item) => (
-                  <span className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-xs font-semibold border border-amber-200">
-                    {item.discountType === 'percentage' ? `${item.discountValue}%` : formatCurrency(item.discountValue)}
-                  </span>
-                ),
-              },
-              {
-                header: 'Status',
-                key: 'isActive',
-                render: (item) => (
-                  <span
-                    className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${item.isActive
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-red-50 text-red-700 border-red-200'
-                      }`}
-                  >
-                    {item.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                ),
-              },
-              {
-                header: 'Valid Until',
-                key: 'validUntil',
-                render: (item) => (
-                  <div className="text-sm">
-                    <p className="text-gray-900">{item.validUntil ? formatDate(item.validUntil) : 'No expiry'}</p>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        );
-
-      case 'settings':
-        return (
-          <SettingsForm />
-        );
-
-      default:
-        return <div>Content not found</div>;
-    }
-  };
 
   // Get modal content based on type
   const getModalContent = () => {
@@ -3285,103 +3389,25 @@ case 'orders':
     loadFoodItems();
   };
 
-const languages = [
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Español' },
-  { code: 'ca', label: 'Català' },
-  { code: 'ar', label: 'العربية' },
-  { code: 'fr', label: 'Français' }, // Added French
-];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
-      <header className="bg-white shadow-xl border-b border-gray-100 sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
-        <div className="flex items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-6">
-            <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-3 rounded-2xl shadow-lg">
-              <Package className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Restaurant Admin</h1>
-              <p className="text-sm text-gray-600 font-medium">Manage your restaurant efficiently</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <select
-              value={selectedLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="px-4 py-2 bg-gray-100 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500"
-            >
-              {languages.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
-            <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-4 py-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-sm font-bold text-white">AD</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold text-gray-900">Admin User</span>
-                <p className="text-xs text-gray-500">Restaurant Owner</p>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </div>
-            <button className="p-3 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all duration-200">
-              <LogOut className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <nav className="w-80 bg-white shadow-xl h-[calc(100vh-97px)] sticky top-[97px] border-r border-gray-100 backdrop-blur-md bg-opacity-90">
-          <div className="p-8">
-            <div className="space-y-3">
-              {navigationItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (item.id === "offers") {
-                      router.push("/offer");
-                    } else if (item.id === "contact") {
-                      router.push("/contact");
-                    } else {
-                      setActiveTab(item.id);
-                    }
-                  }}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-left transition-all duration-300 font-semibold ${activeTab === item.id
-                    ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg transform scale-[1.02]`
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:scale-[1.01]"
-                    }`}
-                >
-                  <div
-                    className={`p-2 rounded-xl ${activeTab === item.id ? "bg-gray-900 bg-opacity-20" : "bg-gray-100"
-                      }`}
-                  >
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span>{item.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </nav>
-        <main className="flex-1 p-8 overflow-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">Loading your data...</p>
-              </div>
-            </div>
-          ) : (
-            renderContent()
-          )}
-        </main>
-      </div>
-
+    <>
+      <AdminShell
+        title="Saborly Admin"
+        subtitle="Keep markets, menus and fulfilment aligned from a single, executive workspace."
+        statusBadges={statusBadges}
+        showSearch
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        languageValue={selectedLanguage}
+        languageOptions={languages}
+        onLanguageChange={handleLanguageChange}
+        sidebarItems={adminNavigation}
+        activeSidebarItem={activeTab}
+        onSidebarNavigate={handleSidebarNavigate}
+        headerChildren={headerHighlights}
+      >
+        {mainContent}
+      </AdminShell>
       {modalContent && (
         <Modal title={modalContent.title} size={modalContent.size}>
           {modalContent.component}
@@ -3402,7 +3428,7 @@ const languages = [
         message={notificationDialog.message}
         type={notificationDialog.type}
       />
-    </div>
+    </>
   );
 };
 
