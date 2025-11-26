@@ -165,8 +165,12 @@ class ApiService {
     return this.request('/categories/all');
   }
 
+  
+
   async getFoodItems(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
+    // For admin, fetch all items by setting a high limit
+    const adminParams = { ...params, limit: 1000, page: 1 };
+    const queryString = new URLSearchParams(adminParams).toString();
     return this.request(`/food-items/getallitems${queryString ? `?${queryString}` : ''}`);
   }
 }
@@ -356,6 +360,8 @@ const Offers = () => {
   const [notificationDialog, setNotificationDialog] = useState({ isOpen: false, title: '', message: '', type: 'success' });
   const [categories, setCategories] = useState([]);
   const [foodItems, setFoodItems] = useState([]);
+  const [filteredFoodItems, setFilteredFoodItems] = useState([]);
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
   const [offers, setOffers] = useState([]);
   const [deviceId,setDeviceId] = useState('');
   const [activeTab, setActiveTab] = useState("offers");
@@ -390,9 +396,34 @@ const Offers = () => {
   };
 
   const loadFoodItems = async () => {
-    const response = await apiService.getFoodItems();
-    setFoodItems(response.items || []);
+    try {
+      // Fetch all items with high limit for admin
+      const response = await apiService.getFoodItems({ limit: 1000, page: 1 });
+      const items = response.items || [];
+      setFoodItems(items);
+      setFilteredFoodItems(items);
+    } catch (error) {
+      console.error('Error loading food items:', error);
+      setFoodItems([]);
+      setFilteredFoodItems([]);
+    }
   };
+
+  // Filter food items based on search query
+  useEffect(() => {
+    if (!itemSearchQuery.trim()) {
+      setFilteredFoodItems(foodItems);
+    } else {
+      const query = itemSearchQuery.toLowerCase();
+      const filtered = foodItems.filter(item => {
+        const name = (item.name?.en || item.name || '').toLowerCase();
+        const description = (item.description?.en || item.description || '').toLowerCase();
+        const price = item.price?.toString() || '';
+        return name.includes(query) || description.includes(query) || price.includes(query);
+      });
+      setFilteredFoodItems(filtered);
+    }
+  }, [itemSearchQuery, foodItems]);
 
   const loadOffers = async (params = {}) => {
     const queryParams = {
@@ -873,11 +904,19 @@ const Offers = () => {
                       }}
                     >
                       <option value="">Select item</option>
-                      {foodItems.map((foodItem) => (
-                        <option key={foodItem._id} value={foodItem._id}>
-                          {foodItem.name} - ${foodItem.price}
-                        </option>
-                      ))}
+                      {filteredFoodItems.length === 0 ? (
+                        <option disabled>No items available</option>
+                      ) : (
+                        filteredFoodItems.map((foodItem) => {
+                          const itemName = foodItem.name?.en || foodItem.name || 'Unnamed Item';
+                          const itemPrice = foodItem.price || 0;
+                          return (
+                            <option key={foodItem._id} value={foodItem._id}>
+                              {itemName} - ${itemPrice.toFixed(2)}
+                            </option>
+                          );
+                        })
+                      )}
                     </select>
                     <input
                       type="number"
@@ -1021,24 +1060,70 @@ const Offers = () => {
                 <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">Items</label>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  Items ({filteredFoodItems.length} available)
+                </label>
+                {/* Search input for items */}
+                <div className="mb-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search items by name, description, or price..."
+                      value={itemSearchQuery}
+                      onChange={(e) => setItemSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
+                    {itemSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setItemSearchQuery('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <select
                   multiple
-                  size="6"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  size="10"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
                   value={formData.appliedToItems}
                   onChange={(e) => setFormData({
                     ...formData,
                     appliedToItems: Array.from(e.target.selectedOptions, option => option.value),
                   })}
                 >
-                  {foodItems.map((item) => (
-                    <option key={item._id} value={item._id} className="py-2">
-                      {item.name} - ${item.price}
+                  {filteredFoodItems.length === 0 ? (
+                    <option disabled className="text-gray-500 py-2">
+                      {itemSearchQuery ? 'No items found matching your search' : 'No items available'}
                     </option>
-                  ))}
+                  ) : (
+                    filteredFoodItems.map((item) => {
+                      const itemName = item.name?.en || item.name || 'Unnamed Item';
+                      const itemPrice = item.price || 0;
+                      const isSelected = formData.appliedToItems.includes(item._id);
+                      return (
+                        <option 
+                          key={item._id} 
+                          value={item._id} 
+                          className={`py-2 ${isSelected ? 'bg-blue-100 font-semibold' : ''}`}
+                        >
+                          {itemName} - ${itemPrice.toFixed(2)}
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">Hold Ctrl/Cmd to select multiple</p>
+                  {formData.appliedToItems.length > 0 && (
+                    <p className="text-xs text-blue-600 font-medium">
+                      {formData.appliedToItems.length} item{formData.appliedToItems.length !== 1 ? 's' : ''} selected
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
