@@ -1619,4 +1619,7 @@ const Offers = () => {
   );
 };
 
+// Disable static generation to prevent prerendering errors with useAuth
+export const dynamic = 'force-dynamic';
+
 export default Offers;
