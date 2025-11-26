@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Saorely Admin",
-  description: "Saorely operations cockpit for managing menus, orders and settings.",
+  title: "Saborly Admin",
+  description: "Saborly operations cockpit for managing menus, orders and settings.",
 };
 
 export default function RootLayout({ children }) {
