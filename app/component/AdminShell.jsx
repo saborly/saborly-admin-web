@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell, Filter, LogOut, Search, ChevronDown } from 'lucide-react';
-import { useAuth } from '../page';
 
 const AdminShell = ({
   title = '',
@@ -19,8 +18,39 @@ const AdminShell = ({
   onSidebarNavigate,
   headerChildren,
   children,
+  user: propUser = null,
+  logout: propLogout = null,
 }) => {
-  const { user, logout } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState(propUser);
+  const [logout, setLogout] = useState(() => propLogout || (() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+  }));
+
+  useEffect(() => {
+    setMounted(true);
+    
+    // Load user from localStorage if not provided as prop
+    if (!propUser && typeof window !== 'undefined') {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+
+    // Use provided logout function or default
+    if (propLogout) {
+      setLogout(() => propLogout);
+    }
+  }, [propUser, propLogout]);
   
   const handleSearchChange = (e) => {
     onSearchChange?.(e.target.value);

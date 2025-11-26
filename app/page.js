@@ -5,7 +5,7 @@ import RestaurantAdminDashboard from './component/dashoard';
 import Dashoard from './admin/page';
 
 // Auth Context
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 // Auth Provider Component
 const AuthProvider = ({ children }) => {

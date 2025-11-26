@@ -349,7 +349,36 @@ const ImageUpload = ({ value, onChange, className = "" }) => {
   );
 };
 
-const Offers = () => {
+// Wrapper component that provides auth to AdminShell
+// This wrapper is client-side only and loads auth from localStorage
+const OffersWithAuth = () => {
+  const [user, setUser] = useState(null);
+  const [logout] = useState(() => () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+  });
+
+  useEffect(() => {
+    // Load from localStorage on client side only
+    if (typeof window !== 'undefined') {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, []);
+
+  return <Offers user={user} logout={logout} />;
+};
+
+const Offers = ({ user: propUser, logout: propLogout }) => {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
@@ -1606,6 +1635,8 @@ const Offers = () => {
         sidebarItems={adminNavigation}
         activeSidebarItem="offers"
         onSidebarNavigate={handleSidebarNavigate}
+        user={propUser}
+        logout={propLogout}
       >
         {bodyContent}
       </AdminShell>
@@ -1619,7 +1650,7 @@ const Offers = () => {
   );
 };
 
-// Disable static generation to prevent prerendering errors with useAuth
+// Disable static generation to prevent prerendering errors
 export const dynamic = 'force-dynamic';
 
-export default Offers;
+export default OffersWithAuth;
