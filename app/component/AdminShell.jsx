@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Bell, Filter, LogOut, Search, ChevronDown } from 'lucide-react';
+import { useAuth } from '../page';
 
 const AdminShell = ({
   title = '',
@@ -19,8 +20,36 @@ const AdminShell = ({
   headerChildren,
   children,
 }) => {
+  const { user, logout } = useAuth();
+  
   const handleSearchChange = (e) => {
     onSearchChange?.(e.target.value);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      logout();
+    }
+  };
+
+  const getUserInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.substring(0, 2).toUpperCase();
+    }
+    return 'AD';
+  };
+
+  const getUserDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Admin User';
   };
 
   return (
@@ -107,18 +136,22 @@ const AdminShell = ({
                 ))}
                 <div className="hidden items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 sm:flex">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white">
-                    AD
+                    {getUserInitials()}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Admin User</p>
-                    <p className="text-xs text-slate-500">Restaurant owner</p>
+                    <p className="text-sm font-semibold text-slate-900">{getUserDisplayName()}</p>
+                    <p className="text-xs text-slate-500">{user?.role === 'admin' ? 'Administrator' : user?.role || 'User'}</p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-slate-400" />
                 </div>
                 <button className="rounded-2xl border border-slate-200 p-3 text-slate-500 transition hover:bg-slate-900 hover:text-white">
                   <Bell className="h-5 w-5" />
                 </button>
-                <button className="rounded-2xl border border-slate-200 p-3 text-slate-500 transition hover:bg-red-500 hover:text-white">
+                <button 
+                  onClick={handleLogout}
+                  className="rounded-2xl border border-slate-200 p-3 text-slate-500 transition hover:bg-red-500 hover:text-white"
+                  title="Logout"
+                >
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
