@@ -919,11 +919,11 @@ const RestaurantAdminDashboard = () => {
       ]);
 
       setDashboardStats({
-        revenue: { current: statsResponse.stats?.totalRevenue || 45250.75, growth: 15.3, period: 'month' },
-        orders: { current: statsResponse.stats?.totalOrders || 2847, growth: 12.8, period: 'week' },
-        customers: { current: statsResponse.stats?.uniqueCustomers || 1456, growth: 8.7, period: 'month' },
-        menuItems: { current: itemsResponse.count || 68, growth: 5.2, period: 'month' },
-        activeOffers: { current: offersResponse.totalOffers || 0, growth: 10, period: 'month' },
+        revenue: { current: statsResponse.stats?.totalRevenue || 0, growth: 0, period: 'month' },
+        orders: { current: statsResponse.stats?.totalOrders || 0, growth: 0, period: 'week' },
+        customers: { current: statsResponse.stats?.uniqueCustomers || 0, growth: 0, period: 'month' },
+        menuItems: { current: itemsResponse.count || 0, growth: 0, period: 'month' },
+        activeOffers: { current: offersResponse.totalOffers || 0, growth: 0, period: 'month' },
       });
       
       setOrders(ordersResponse.orders || []);

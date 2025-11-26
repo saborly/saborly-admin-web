@@ -229,19 +229,6 @@ const LoginPage = () => {
               </ul>
             </div>
 
-            <div className="mt-10 grid grid-cols-2 gap-4 text-slate-100">
-              {[
-                { label: 'Average response', value: '2m 14s' },
-                { label: 'Markets online', value: '12 regions' },
-                { label: 'Active offers', value: '08 campaigns' },
-                { label: 'Fulfillment rate', value: '99.2%' },
-              ].map((stat) => (
-                <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                  <p className="text-xs uppercase tracking-wide text-slate-200/70">{stat.label}</p>
-                  <p className="mt-2 text-lg font-semibold">{stat.value}</p>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
