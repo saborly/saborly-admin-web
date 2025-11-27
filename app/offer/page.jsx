@@ -438,21 +438,56 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
     }
   };
 
+  const normalizeSearchField = useCallback((value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value.toLowerCase();
+    if (typeof value === 'number') return value.toString().toLowerCase();
+    if (Array.isArray(value)) {
+      return value
+        .filter(Boolean)
+        .map((v) => normalizeSearchField(v))
+        .join(' ');
+    }
+    if (typeof value === 'object') {
+      return Object.values(value)
+        .filter(Boolean)
+        .map((v) => normalizeSearchField(v))
+        .join(' ');
+    }
+    return '';
+  }, []);
+
+  const itemMatchesQuery = useCallback(
+    (item, query) => {
+      if (!query.trim()) return true;
+      const normalizedQuery = query.trim().toLowerCase();
+
+      const fieldsToSearch = [
+        normalizeSearchField(item.name),
+        normalizeSearchField(item.description),
+        normalizeSearchField(item.subtitle),
+        normalizeSearchField(item.category?.name),
+        normalizeSearchField(item.badge),
+        normalizeSearchField(item.type),
+        item.price != null ? item.price.toString().toLowerCase() : '',
+      ];
+
+      return fieldsToSearch.some((field) => field.includes(normalizedQuery));
+    },
+    [normalizeSearchField]
+  );
+
   // Filter food items based on search query
   useEffect(() => {
     if (!itemSearchQuery.trim()) {
       setFilteredFoodItems(foodItems);
     } else {
-      const query = itemSearchQuery.toLowerCase();
-      const filtered = foodItems.filter(item => {
-        const name = (item.name?.en || item.name || '').toLowerCase();
-        const description = (item.description?.en || item.description || '').toLowerCase();
-        const price = item.price?.toString() || '';
-        return name.includes(query) || description.includes(query) || price.includes(query);
-      });
+      const filtered = foodItems.filter((item) =>
+        itemMatchesQuery(item, itemSearchQuery)
+      );
       setFilteredFoodItems(filtered);
     }
-  }, [itemSearchQuery, foodItems]);
+  }, [itemSearchQuery, foodItems, itemMatchesQuery]);
 
   const loadOffers = async (params = {}) => {
     const queryParams = {
