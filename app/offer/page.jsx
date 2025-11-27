@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -394,6 +394,8 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
   const [offers, setOffers] = useState([]);
   const [deviceId,setDeviceId] = useState('');
   const [activeTab, setActiveTab] = useState("offers");
+  const itemSearchInputRef = useRef(null);
+  const [isTypingInItemSearch, setIsTypingInItemSearch] = useState(false);
   useEffect(() => {
   setDeviceId(getDeviceId());
 }, []);
@@ -488,6 +490,15 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
       setFilteredFoodItems(filtered);
     }
   }, [itemSearchQuery, foodItems, itemMatchesQuery]);
+
+  useEffect(() => {
+    if (isTypingInItemSearch && itemSearchInputRef.current) {
+      const el = itemSearchInputRef.current;
+      const cursorPos = el.value.length;
+      el.focus();
+      el.setSelectionRange(cursorPos, cursorPos);
+    }
+  }, [itemSearchQuery, isTypingInItemSearch]);
 
   const loadOffers = async (params = {}) => {
     const queryParams = {
@@ -1136,6 +1147,9 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
                       placeholder="Search items by name, description, or price..."
                       value={itemSearchQuery}
                       onChange={(e) => setItemSearchQuery(e.target.value)}
+                      onFocus={() => setIsTypingInItemSearch(true)}
+                      onBlur={() => setIsTypingInItemSearch(false)}
+                      ref={itemSearchInputRef}
                       className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                     {itemSearchQuery && (
