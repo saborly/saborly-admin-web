@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import {
   LayoutDashboard,
   Package,
@@ -389,13 +389,15 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
   const [notificationDialog, setNotificationDialog] = useState({ isOpen: false, title: '', message: '', type: 'success' });
   const [categories, setCategories] = useState([]);
   const [foodItems, setFoodItems] = useState([]);
-  const [filteredFoodItems, setFilteredFoodItems] = useState([]);
   const [itemSearchQuery, setItemSearchQuery] = useState('');
   const [offers, setOffers] = useState([]);
   const [deviceId,setDeviceId] = useState('');
   const [activeTab, setActiveTab] = useState("offers");
   const itemSearchInputRef = useRef(null);
-  const [isTypingInItemSearch, setIsTypingInItemSearch] = useState(false);
+  const itemSearchSelectionRef = useRef({ start: null, end: null });
+  const itemsSelectRef = useRef(null);
+  const selectScrollPositionRef = useRef(0);
+  const isInputFocusedRef = useRef(false);
   useEffect(() => {
   setDeviceId(getDeviceId());
 }, []);
@@ -432,7 +434,6 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
       const response = await apiService.getFoodItems({ limit: 1000, page: 1 });
       const items = response.items || [];
       setFoodItems(items);
-      setFilteredFoodItems(items);
     } catch (error) {
       console.error('Error loading food items:', error);
       setFoodItems([]);
@@ -479,26 +480,175 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
     [normalizeSearchField]
   );
 
-  // Filter food items based on search query
-  useEffect(() => {
-    if (!itemSearchQuery.trim()) {
-      setFilteredFoodItems(foodItems);
-    } else {
-      const filtered = foodItems.filter((item) =>
-        itemMatchesQuery(item, itemSearchQuery)
-      );
-      setFilteredFoodItems(filtered);
-    }
-  }, [itemSearchQuery, foodItems, itemMatchesQuery]);
+  const filteredFoodItems = useMemo(() => {
+    if (!itemSearchQuery.trim()) return foodItems;
+    return foodItems.filter((item) => itemMatchesQuery(item, itemSearchQuery));
+  }, [foodItems, itemSearchQuery, itemMatchesQuery]);
 
-  useEffect(() => {
-    if (isTypingInItemSearch && itemSearchInputRef.current) {
-      const el = itemSearchInputRef.current;
-      const cursorPos = el.value.length;
-      el.focus();
-      el.setSelectionRange(cursorPos, cursorPos);
+
+  // Preserve select scroll position when filtered items change - IMMEDIATE restoration
+  useLayoutEffect(() => {
+    if (!itemsSelectRef.current || !isInputFocusedRef.current) return;
+    const select = itemsSelectRef.current;
+    const savedScrollTop = selectScrollPositionRef.current;
+    
+    // COMPLETELY DISABLE SCROLLING by setting overflow hidden with important
+    select.style.setProperty('overflow', 'hidden', 'important');
+    select.style.setProperty('overflow-y', 'hidden', 'important');
+    
+    // IMMEDIATELY restore scroll position (before browser can scroll)
+    try {
+      select.scrollTop = savedScrollTop;
+    } catch (e) {
+      // Ignore if scrollTop is locked
     }
-  }, [itemSearchQuery, isTypingInItemSearch]);
+    
+    // Force restore multiple times to override any browser scrolling
+    const restoreScroll = () => {
+      if (itemsSelectRef.current && isInputFocusedRef.current) {
+        itemsSelectRef.current.style.setProperty('overflow', 'hidden', 'important');
+        itemsSelectRef.current.style.setProperty('overflow-y', 'hidden', 'important');
+        try {
+          itemsSelectRef.current.scrollTop = savedScrollTop;
+        } catch (e) {
+          // Ignore
+        }
+      }
+    };
+    
+    restoreScroll();
+    requestAnimationFrame(restoreScroll);
+    requestAnimationFrame(() => requestAnimationFrame(restoreScroll));
+    
+    // Also restore on next tick
+    setTimeout(restoreScroll, 0);
+    setTimeout(restoreScroll, 10);
+  }, [filteredFoodItems]);
+
+  // Prevent scroll on select when input is focused - OVERRIDE scrollTop PROPERTY
+  useEffect(() => {
+    if (!itemsSelectRef.current || !itemSearchInputRef.current || !showModal) return;
+    
+    const select = itemsSelectRef.current;
+    const input = itemSearchInputRef.current;
+    let scrollTopDescriptor = null;
+    let isLocked = false;
+    
+    const lockScroll = () => {
+      if (isLocked) return;
+      isLocked = true;
+      isInputFocusedRef.current = true;
+      selectScrollPositionRef.current = select.scrollTop;
+      
+      // Override scrollTop setter to prevent changes
+      try {
+        scrollTopDescriptor = Object.getOwnPropertyDescriptor(select, 'scrollTop');
+        Object.defineProperty(select, 'scrollTop', {
+          get: () => selectScrollPositionRef.current,
+          set: (value) => {
+            // Ignore any attempts to change scrollTop
+            if (scrollTopDescriptor && scrollTopDescriptor.set) {
+              scrollTopDescriptor.set.call(select, selectScrollPositionRef.current);
+            }
+          },
+          configurable: true
+        });
+      } catch (e) {
+        console.warn('Could not override scrollTop:', e);
+      }
+      
+      // Also set overflow hidden with important to override any CSS
+      select.style.setProperty('overflow', 'hidden', 'important');
+      select.style.setProperty('overflow-y', 'hidden', 'important');
+      select.style.setProperty('scroll-behavior', 'auto', 'important');
+    };
+    
+    const unlockScroll = () => {
+      if (!isLocked) return;
+      isLocked = false;
+      isInputFocusedRef.current = false;
+      
+      // Restore original scrollTop property
+      if (scrollTopDescriptor) {
+        try {
+          Object.defineProperty(select, 'scrollTop', scrollTopDescriptor);
+        } catch (e) {
+          console.warn('Could not restore scrollTop:', e);
+        }
+      }
+      
+      // Restore overflow
+      select.style.removeProperty('overflow');
+      select.style.removeProperty('overflow-y');
+    };
+    
+    const handleInputFocus = () => {
+      lockScroll();
+    };
+    
+    const handleInputBlur = () => {
+      unlockScroll();
+    };
+    
+    const handleScroll = (e) => {
+      if (isLocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    };
+    
+    // Watch for DOM changes - lock immediately
+    const observer = new MutationObserver(() => {
+      if (isLocked && itemsSelectRef.current) {
+        lockScroll();
+        requestAnimationFrame(() => {
+          if (itemsSelectRef.current && isLocked) {
+            lockScroll();
+          }
+        });
+      }
+    });
+    
+    observer.observe(select, { childList: true, subtree: true });
+    
+    // Prevent all scroll events
+    select.addEventListener('scroll', handleScroll, { passive: false, capture: true });
+    select.addEventListener('wheel', handleScroll, { passive: false, capture: true });
+    select.addEventListener('touchmove', handleScroll, { passive: false, capture: true });
+    input.addEventListener('focus', handleInputFocus);
+    input.addEventListener('blur', handleInputBlur);
+    
+    // Continuously enforce lock
+    const scrollLockInterval = setInterval(() => {
+      if (isLocked && itemsSelectRef.current) {
+        lockScroll();
+      }
+    }, 1); // Maximum frequency
+    
+    return () => {
+      unlockScroll();
+      observer.disconnect();
+      select.removeEventListener('scroll', handleScroll, { capture: true });
+      select.removeEventListener('wheel', handleScroll, { capture: true });
+      select.removeEventListener('touchmove', handleScroll, { capture: true });
+      input.removeEventListener('focus', handleInputFocus);
+      input.removeEventListener('blur', handleInputBlur);
+      clearInterval(scrollLockInterval);
+    };
+  }, [showModal]);
+
+  useLayoutEffect(() => {
+    if (!showModal || !itemSearchInputRef.current) return;
+    const el = itemSearchInputRef.current;
+    const { start, end } = itemSearchSelectionRef.current;
+    const fallbackPos = el.value.length;
+    const selectionStart = typeof start === 'number' ? start : fallbackPos;
+    const selectionEnd = typeof end === 'number' ? end : selectionStart;
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(selectionStart, selectionEnd);
+  }, [itemSearchQuery, showModal]);
 
   const loadOffers = async (params = {}) => {
     const queryParams = {
@@ -1146,16 +1296,53 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
                       type="text"
                       placeholder="Search items by name, description, or price..."
                       value={itemSearchQuery}
-                      onChange={(e) => setItemSearchQuery(e.target.value)}
-                      onFocus={() => setIsTypingInItemSearch(true)}
-                      onBlur={() => setIsTypingInItemSearch(false)}
+                      onChange={(e) => {
+                        // Save scroll position BEFORE state update and disable scrolling
+                        if (itemsSelectRef.current) {
+                          selectScrollPositionRef.current = itemsSelectRef.current.scrollTop;
+                          // Force overflow hidden with important
+                          itemsSelectRef.current.style.setProperty('overflow', 'hidden', 'important');
+                          itemsSelectRef.current.style.setProperty('overflow-y', 'hidden', 'important');
+                        }
+                        itemSearchSelectionRef.current = {
+                          start: e.target.selectionStart,
+                          end: e.target.selectionEnd,
+                        };
+                        setItemSearchQuery(e.target.value);
+                      }}
+                      onFocus={() => {
+                        isInputFocusedRef.current = true;
+                        if (itemsSelectRef.current) {
+                          selectScrollPositionRef.current = itemsSelectRef.current.scrollTop;
+                          // Use setProperty with important flag to override any other styles
+                          itemsSelectRef.current.style.setProperty('overflow', 'hidden', 'important');
+                          itemsSelectRef.current.style.setProperty('overflow-y', 'hidden', 'important');
+                        }
+                      }}
+                      onBlur={() => {
+                        isInputFocusedRef.current = false;
+                        if (itemsSelectRef.current) {
+                          itemsSelectRef.current.style.removeProperty('overflow');
+                          itemsSelectRef.current.style.removeProperty('overflow-y');
+                        }
+                      }}
                       ref={itemSearchInputRef}
                       className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     />
                     {itemSearchQuery && (
                       <button
                         type="button"
-                        onClick={() => setItemSearchQuery('')}
+                        onClick={() => {
+                          setItemSearchQuery('');
+                          if (itemSearchInputRef.current) {
+                            itemSearchSelectionRef.current = { start: 0, end: 0 };
+                            requestAnimationFrame(() => {
+                              if (!itemSearchInputRef.current) return;
+                              itemSearchInputRef.current.focus({ preventScroll: true });
+                              itemSearchInputRef.current.setSelectionRange(0, 0);
+                            });
+                          }
+                        }}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         <X className="w-4 h-4" />
@@ -1164,14 +1351,50 @@ const Offers = ({ user: propUser, logout: propLogout }) => {
                   </div>
                 </div>
                 <select
+                  ref={itemsSelectRef}
                   multiple
                   size="10"
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
                   value={formData.appliedToItems}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    appliedToItems: Array.from(e.target.selectedOptions, option => option.value),
-                  })}
+                  onChange={(e) => {
+                    // Save scroll position BEFORE state update
+                    if (itemsSelectRef.current) {
+                      selectScrollPositionRef.current = itemsSelectRef.current.scrollTop;
+                    }
+                    setFormData({
+                      ...formData,
+                      appliedToItems: Array.from(e.target.selectedOptions, option => option.value),
+                    });
+                    // Restore scroll position after state update - multiple attempts
+                    const savedScroll = selectScrollPositionRef.current;
+                    if (itemsSelectRef.current) {
+                      itemsSelectRef.current.scrollTop = savedScroll;
+                    }
+                    requestAnimationFrame(() => {
+                      if (itemsSelectRef.current) {
+                        itemsSelectRef.current.scrollTop = savedScroll;
+                      }
+                      requestAnimationFrame(() => {
+                        if (itemsSelectRef.current) {
+                          itemsSelectRef.current.scrollTop = savedScroll;
+                        }
+                      });
+                    });
+                  }}
+                  onFocus={(e) => {
+                    // Prevent auto-scroll when select gets focus
+                    if (itemsSelectRef.current) {
+                      const savedScrollTop = itemsSelectRef.current.scrollTop || 0;
+                      if (itemsSelectRef.current) {
+                        itemsSelectRef.current.scrollTop = savedScrollTop;
+                      }
+                      requestAnimationFrame(() => {
+                        if (itemsSelectRef.current) {
+                          itemsSelectRef.current.scrollTop = savedScrollTop;
+                        }
+                      });
+                    }
+                  }}
                 >
                   {filteredFoodItems.length === 0 ? (
                     <option disabled className="text-gray-500 py-2">
