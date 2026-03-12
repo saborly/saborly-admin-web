@@ -1,93 +1,89 @@
-import Busboy from "busboy";
-import { put } from '@vercel/blob';
-import { NextResponse } from "next/server";
+/**
+ * app/api/upload/route.js
+ *
+ * Next.js Route Handler — proxies image uploads to the Express backend.
+ * Replaced @vercel/blob with local-disk storage via the backend endpoint:
+ *   POST {BACKEND_URL}/api/v1/upload/image
+ *
+ * Accepts:  multipart/form-data  with field "file"  (kept for backward compat)
+ *           or field "image"  (new standard field name for the backend)
+ * Returns:  { url, filename }  — same shape as the old Vercel Blob response
+ *           so existing callers don't need to change.
+ */
+
+import { NextResponse } from 'next/server';
+
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ||
+  'http://localhost:5000';
 
 export async function POST(request) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('file');
+    const incomingForm = await request.formData();
+
+    // Support both field names: "file" (legacy) and "image" (new backend standard)
+    const file = incomingForm.get('file') || incomingForm.get('image');
 
     if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No file uploaded. Use field name "file" or "image".' },
+        { status: 400 }
+      );
     }
 
-    // Validate file type
+    // ── Basic client-side validation (mirrors backend limits) ────────────────
     if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Only image files are allowed.' },
+        { status: 415 }
+      );
     }
 
-    // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be less than 5MB' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'File size must be less than 5 MB.' },
+        { status: 413 }
+      );
     }
 
-    // Generate unique filename
-    const fileExtension = file.name.split('.').pop();
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const filename = `restaurant-${timestamp}-${randomString}.${fileExtension}`;
+    // ── Forward the file to the Express backend ──────────────────────────────
+    const outgoingForm = new FormData();
+    // Backend multer expects field name "image"
+    outgoingForm.append('image', file, file.name);
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Pass the auth token through if present in the request headers
+    const authHeader = request.headers.get('authorization') || '';
 
-    // Upload to Vercel Blob
-    const { url } = await put(filename, buffer, {
-      access: 'public',
-      contentType: file.type,
+    const backendRes = await fetch(`${BACKEND_URL}/api/v1/upload/image`, {
+      method: 'POST',
+      headers: {
+        ...(authHeader && { Authorization: authHeader }),
+      },
+      body: outgoingForm,
     });
 
-    return NextResponse.json({ url, filename });
+    if (!backendRes.ok) {
+      const errData = await backendRes.json().catch(() => ({}));
+      return NextResponse.json(
+        { error: errData.message || 'Backend upload failed.' },
+        { status: backendRes.status }
+      );
+    }
 
+    const data = await backendRes.json();
+
+    // Return { url, filename } for backward compatibility
+    // (old code reads data.url; apiService.uploadImage reads data.imageUrl — both work)
+    return NextResponse.json({
+      url: data.imageUrl,
+      imageUrl: data.imageUrl,
+      filename: data.filename,
+    });
   } catch (error) {
-    console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    console.error('[/api/upload] Proxy error:', error);
+    return NextResponse.json(
+      { error: 'Upload failed. Please try again.' },
+      { status: 500 }
+    );
   }
 }
-
-// Helper function for Pages Router to parse multipart form data
-async function parseMultipartForm(req) {
-  return new Promise((resolve, reject) => {
-    const bb =Busboy({ headers: req.headers });
-    const fields = {};
-    const files = {};
-
-    bb.on('field', (fieldname, val) => {
-      fields[fieldname] = val;
-    });
-
-    bb.on('file', (fieldname, file, info) => {
-      const { filename, encoding, mimeType } = info;
-      const chunks = [];
-
-      file.on('data', (chunk) => {
-        chunks.push(chunk);
-      });
-
-      file.on('end', () => {
-        files[fieldname] = {
-          buffer: Buffer.concat(chunks),
-          originalname: filename,
-          mimetype: mimeType,
-          size: Buffer.concat(chunks).length,
-        };
-      });
-    });
-
-    bb.on('finish', () => {
-      resolve({ fields, files });
-    });
-
-    bb.on('error', (err) => {
-      reject(err);
-    });
-
-    req.pipe(bb);
-  });
-}
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

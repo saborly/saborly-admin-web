@@ -9,8 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@vercel/blob": "^2.0.0",
-    "busboy": "^1.6.0",
     "firebase": "^12.4.0",
     "lucide": "^0.544.0",
     "lucide-react": "^0.544.0",

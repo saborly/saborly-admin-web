@@ -273,7 +273,7 @@ const ImageUpload = ({ value, onChange, className = "" }) => {
       reader.onload = (e) => setPreview(e.target.result);
       reader.readAsDataURL(file);
 
-      const imageUrl = await apiService.uploadToVercelBlob(file);
+      const imageUrl = await apiService.uploadImage(file);
       onChange(imageUrl);
       setPreview(imageUrl);
     } catch (error) {

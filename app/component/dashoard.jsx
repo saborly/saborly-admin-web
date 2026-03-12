@@ -151,30 +151,39 @@ class ApiService {
     }
   }
 
-  // Vercel Blob Upload
-  async uploadToVercelBlob(file) {
+  // Local-disk image upload — sends directly to backend /api/v1/upload/image
+  async uploadImage(file) {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      // Backend multer expects field name "image"
+      formData.append('image', file, file.name);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch(`${API_BASE_URL}/upload/image`, {
         method: 'POST',
         headers: {
           ...(this.token && { Authorization: `Bearer ${this.token}` }),
+          // Do NOT set Content-Type — browser sets it with boundary automatically
         },
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to upload image');
       }
 
       const data = await response.json();
-      return data.url;
+      // Backend returns { imageUrl: "http://..." }
+      return data.imageUrl;
     } catch (error) {
       console.error('Upload error:', error);
       throw error;
     }
+  }
+
+  // Alias kept for any legacy callers
+  async uploadToVercelBlob(file) {
+    return this.uploadImage(file);
   }
 
   // Categories API
@@ -491,7 +500,7 @@ const ImageUpload = ({ value, onChange, className = "", multiple = false, id }) 
       };
       reader.readAsDataURL(file);
 
-      const imageUrl = await apiService.uploadToVercelBlob(file);
+      const imageUrl = await apiService.uploadImage(file);
       console.log(`Image uploaded for input ID: ${id}, URL: ${imageUrl}`);
       onChange(multiple ? [...(Array.isArray(value) ? value : []), imageUrl] : imageUrl);
     } catch (error) {
