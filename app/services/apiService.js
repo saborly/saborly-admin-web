@@ -13,7 +13,7 @@ export class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
     const url = `${API_BASE_URL}${endpoint}`;
     const config = {
       headers: {
