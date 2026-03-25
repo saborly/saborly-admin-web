@@ -11,6 +11,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+
 export const metadata = {
   title: "Saborly Admin",
   description: "Saborly operations cockpit for managing menus, orders and settings.",
