@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Image as ImageIcon } from 'lucide-react';
-import { apiService } from '../services/apiService';
+import { X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { ApiService } from '../services/apiService';
+
+// Use a fresh ApiService instance so the auth token is always up to date
+const apiService = new ApiService();
 
 const CategoryForm = ({ onClose, onSubmit, initialData, mode }) => {
   const [formData, setFormData] = useState({
@@ -13,6 +16,7 @@ const CategoryForm = ({ onClose, onSubmit, initialData, mode }) => {
   });
   const [errors, setErrors] = useState({});
   const [imagePreview, setImagePreview] = useState(null);
+  const [imageUploading, setImageUploading] = useState(false);
 
   useEffect(() => {
     if (initialData && mode === 'edit') {
@@ -56,15 +60,27 @@ const CategoryForm = ({ onClose, onSubmit, initialData, mode }) => {
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData((prev) => ({ ...prev, imageUrl: reader.result }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Show a local preview immediately while uploading
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result);
+    reader.readAsDataURL(file);
+
+    // Upload the file to the VPS backend
+    setImageUploading(true);
+    setErrors((prev) => ({ ...prev, imageUrl: undefined }));
+    try {
+      const imageUrl = await apiService.uploadImage(file);
+      setImagePreview(imageUrl);
+      setFormData((prev) => ({ ...prev, imageUrl }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, imageUrl: 'Image upload failed. Please try again.' }));
+      setImagePreview(null);
+    } finally {
+      setImageUploading(false);
     }
   };
 
@@ -155,20 +171,34 @@ const CategoryForm = ({ onClose, onSubmit, initialData, mode }) => {
                 onChange={handleImageChange}
                 className="hidden"
                 id="image-upload"
+                disabled={imageUploading}
               />
               <label
                 htmlFor="image-upload"
-                className="cursor-pointer px-4 py-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 flex items-center gap-2"
+                className={`cursor-pointer px-4 py-2 rounded-xl flex items-center gap-2 transition-colors ${
+                  imageUploading
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                }`}
               >
-                <ImageIcon className="w-5 h-5" />
-                Upload Image
+                {imageUploading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <ImageIcon className="w-5 h-5" />
+                )}
+                {imageUploading ? 'Uploading…' : 'Upload Image'}
               </label>
-              {imagePreview && (
+              {imagePreview && !imagePreview.startsWith('data:') && (
                 <img
                   src={imagePreview}
                   alt="Preview"
                   className="w-16 h-16 object-cover rounded-xl"
                 />
+              )}
+              {imagePreview && imagePreview.startsWith('data:') && (
+                <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                </div>
               )}
             </div>
             {errors.imageUrl && <p className="text-red-500 text-xs mt-1">{errors.imageUrl}</p>}

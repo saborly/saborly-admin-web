@@ -45,7 +45,7 @@ import { useRouter } from 'next/navigation';
 import AdminShell from '../component/AdminShell';
 import { adminNavigation } from '../component/navigationConfig';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://soleybackend.vercel.app/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
 
 // Device ID Generator - Creates a unique device identifier
 const getDeviceId = ()=> {
@@ -100,26 +100,38 @@ class ApiService {
     }
   }
 
-  async uploadToVercelBlob(file) {
+  // Uploads directly to the VPS backend (multer → /uploads/images/)
+  async uploadImage(file) {
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('image', file, file.name);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch(`${API_BASE_URL}/upload/image`, {
         method: 'POST',
         headers: {
           ...(this.token && { Authorization: `Bearer ${this.token}` }),
+          // Do NOT set Content-Type — browser sets it with the multipart boundary
         },
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Failed to upload image');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to upload image');
+      }
+
       const data = await response.json();
-      return data.url;
+      // Backend returns { imageUrl: "https://api.saborly.es/uploads/images/..." }
+      return data.imageUrl;
     } catch (error) {
       console.error('Upload error:', error);
       throw error;
     }
+  }
+
+  // Legacy alias — kept so any older call sites still work
+  async uploadToVercelBlob(file) {
+    return this.uploadImage(file);
   }
 
   async getOffers(params = {}) {
