@@ -4,6 +4,8 @@ import { Eye, EyeOff, Shield, Lock, Mail, AlertCircle, CheckCircle, Users, Setti
 import RestaurantAdminDashboard from './component/dashoard';
 import Dashoard from './admin/page';
 
+const ADMIN_ROLES = ['admin', 'manager', 'super_admin', 'branch_admin', 'staff', 'superadmin'];
+
 // Auth Context
 export const AuthContext = createContext();
 
@@ -21,7 +23,7 @@ const AuthProvider = ({ children }) => {
     if (token && userData) {
       try {
         const parsedUser = JSON.parse(userData);
-        if (parsedUser.role === 'admin') {
+        if (ADMIN_ROLES.includes(parsedUser.role)) {
           setAuthToken(token);
           setUser(parsedUser);
         } else {
@@ -40,10 +42,16 @@ const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
+      const branchId =
+        (typeof window !== 'undefined' &&
+          (localStorage.getItem('branchId') || process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID)) ||
+        process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID;
+      const response = await fetch(`${apiBase}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(branchId && { 'X-Branch-Id': branchId }),
         },
         body: JSON.stringify({ 
           email: email.toLowerCase().trim(), 
@@ -53,18 +61,20 @@ const AuthProvider = ({ children }) => {
 
       const data = await response.json();
 
-      if (data.success && data.user.role === 'admin') {
-        // Store auth data
+      if (data.success && ADMIN_ROLES.includes(data.user.role)) {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        if (data.user.branchId) {
+          localStorage.setItem('branchId', data.user.branchId);
+        }
         
         setAuthToken(data.token);
         setUser(data.user);
         return { success: true, message: data.message };
-      } else if (data.success && data.user.role !== 'admin') {
+      } else if (data.success && !ADMIN_ROLES.includes(data.user.role)) {
         return { 
           success: false, 
-          message: 'Access denied. Super Admin privileges required.' 
+          message: 'Access denied. Admin or staff privileges required.' 
         };
       } else {
         return { 
@@ -84,6 +94,7 @@ const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('branchId');
     
     setAuthToken(null);
     setUser(null);

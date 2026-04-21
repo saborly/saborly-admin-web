@@ -15,11 +15,14 @@ export class ApiService {
   async request(endpoint, options = {}) {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
     const url = `${API_BASE_URL}${endpoint}`;
+    const branchId =
+      typeof window !== 'undefined' ? localStorage.getItem('branchId') : null;
     const config = {
       headers: {
         'Content-Type': 'application/json',
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
         'Accept-Language': this.language,
+        ...(branchId && { 'X-Branch-Id': branchId }),
         ...options.headers,
       },
       ...options,
@@ -56,11 +59,13 @@ export class ApiService {
       formData.append('image', file, file.name);
 
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const branchId =
+        typeof window !== 'undefined' ? localStorage.getItem('branchId') : null;
       const response = await fetch(`${API_BASE_URL}/upload/image`, {
         method: 'POST',
         headers: {
           ...(this.token && { Authorization: `Bearer ${this.token}` }),
-          // Do NOT set Content-Type — the browser must set it with the boundary
+          ...(branchId && { 'X-Branch-Id': branchId }),
         },
         body: formData,
       });

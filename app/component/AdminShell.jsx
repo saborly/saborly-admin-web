@@ -23,10 +23,13 @@ const AdminShell = ({
 }) => {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState(propUser);
+  const [branches, setBranches] = useState([]);
+  const [activeBranchId, setActiveBranchId] = useState(null);
   const [logout, setLogout] = useState(() => propLogout || (() => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
+      localStorage.removeItem('branchId');
       window.location.href = '/';
     }
   }));
@@ -51,6 +54,28 @@ const AdminShell = ({
       setLogout(() => propLogout);
     }
   }, [propUser, propLogout]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mounted) return;
+    setActiveBranchId(localStorage.getItem('branchId'));
+    const u = user;
+    const superUser = u?.role === 'super_admin' || u?.role === 'superadmin';
+    if (!superUser) return;
+    const token = localStorage.getItem('authToken');
+    const api = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
+    const bid = localStorage.getItem('branchId');
+    fetch(`${api}/branches`, {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(bid && { 'X-Branch-Id': bid }),
+      },
+    })
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.branches)) setBranches(d.branches);
+      })
+      .catch(() => {});
+  }, [mounted, user?.role]);
   
   const handleSearchChange = (e) => {
     onSearchChange?.(e.target.value);
@@ -156,6 +181,26 @@ const AdminShell = ({
                     ))}
                   </select>
                 )}
+                {(user?.role === 'super_admin' || user?.role === 'superadmin') &&
+                  branches.length > 0 && (
+                    <select
+                      value={activeBranchId || ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        localStorage.setItem('branchId', v);
+                        setActiveBranchId(v);
+                        window.location.reload();
+                      }}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm focus:outline-none max-w-[220px]"
+                      title="Branch"
+                    >
+                      {branches.map((b) => (
+                        <option key={b._id} value={b._id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
               </div>
               <div className="flex items-center gap-2">
                 {statusBadges.map((badge) => (
