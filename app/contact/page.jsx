@@ -34,6 +34,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getClientBranchId } from '@/lib/clientBranchId';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
 
@@ -45,10 +46,12 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const branchId = getClientBranchId();
     const config = {
       headers: {
         'Content-Type': 'application/json',
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(branchId && { 'X-Branch-Id': branchId }),
         ...options.headers,
       },
       ...options,

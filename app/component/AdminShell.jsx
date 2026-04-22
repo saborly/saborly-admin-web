@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { getClientBranchId, clearAdminAuthStorage } from '@/lib/clientBranchId';
 import { Bell, Filter, LogOut, Search, ChevronDown } from 'lucide-react';
 
 const AdminShell = ({
@@ -27,9 +28,7 @@ const AdminShell = ({
   const [activeBranchId, setActiveBranchId] = useState(null);
   const [logout, setLogout] = useState(() => propLogout || (() => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('branchId');
+      clearAdminAuthStorage();
       window.location.href = '/';
     }
   }));
@@ -63,7 +62,7 @@ const AdminShell = ({
     if (!superUser) return;
     const token = localStorage.getItem('authToken');
     const api = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
-    const bid = localStorage.getItem('branchId');
+    const bid = getClientBranchId();
     fetch(`${api}/branches`, {
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),

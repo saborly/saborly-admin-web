@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from "next/navigation";
 import { useSearchParams } from 'next/navigation';
+import { getClientBranchId } from '@/lib/clientBranchId';
 import { useDebounce } from 'use-debounce';
 import { useRef } from 'react';
 import { MenuItemsGrid } from './MenuItemsSection';
@@ -118,11 +119,15 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const branchId = getClientBranchId();
+    // Always read token fresh so a new login session is picked up immediately
+    const token = (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null) || this.token;
     const config = {
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
         'Accept-Language': this.language,
+        ...(branchId && { 'X-Branch-Id': branchId }),
         ...options.headers,
       },
       ...options,
@@ -158,10 +163,12 @@ class ApiService {
       // Backend multer expects field name "image"
       formData.append('image', file, file.name);
 
+      const branchId = getClientBranchId();
       const response = await fetch(`${API_BASE_URL}/upload/image`, {
         method: 'POST',
         headers: {
           ...(this.token && { Authorization: `Bearer ${this.token}` }),
+          ...(branchId && { 'X-Branch-Id': branchId }),
           // Do NOT set Content-Type — browser sets it with boundary automatically
         },
         body: formData,

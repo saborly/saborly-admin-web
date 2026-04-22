@@ -1,3 +1,5 @@
+import { getClientBranchId } from '@/lib/clientBranchId';
+
 // services/apiService.js
 export class ApiService {
   constructor() {
@@ -15,12 +17,12 @@ export class ApiService {
   async request(endpoint, options = {}) {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
     const url = `${API_BASE_URL}${endpoint}`;
-    const branchId =
-      typeof window !== 'undefined' ? localStorage.getItem('branchId') : null;
+    const branchId = getClientBranchId();
+    const token = (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null) || this.token;
     const config = {
       headers: {
         'Content-Type': 'application/json',
-        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(token && { Authorization: `Bearer ${token}` }),
         'Accept-Language': this.language,
         ...(branchId && { 'X-Branch-Id': branchId }),
         ...options.headers,
@@ -59,8 +61,7 @@ export class ApiService {
       formData.append('image', file, file.name);
 
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-      const branchId =
-        typeof window !== 'undefined' ? localStorage.getItem('branchId') : null;
+      const branchId = getClientBranchId();
       const response = await fetch(`${API_BASE_URL}/upload/image`, {
         method: 'POST',
         headers: {

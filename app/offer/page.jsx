@@ -42,6 +42,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getClientBranchId, clearAdminAuthStorage } from '@/lib/clientBranchId';
 import AdminShell from '../component/AdminShell';
 import { adminNavigation } from '../component/navigationConfig';
 
@@ -76,10 +77,12 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const branchId = getClientBranchId();
     const config = {
       headers: {
         'Content-Type': 'application/json',
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        ...(branchId && { 'X-Branch-Id': branchId }),
         ...options.headers,
       },
       ...options,
@@ -106,10 +109,12 @@ class ApiService {
       const formData = new FormData();
       formData.append('image', file, file.name);
 
+      const branchId = getClientBranchId();
       const response = await fetch(`${API_BASE_URL}/upload/image`, {
         method: 'POST',
         headers: {
           ...(this.token && { Authorization: `Bearer ${this.token}` }),
+          ...(branchId && { 'X-Branch-Id': branchId }),
           // Do NOT set Content-Type — browser sets it with the multipart boundary
         },
         body: formData,
@@ -367,8 +372,7 @@ const OffersWithAuth = () => {
   const [user, setUser] = useState(null);
   const [logout] = useState(() => () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
+      clearAdminAuthStorage();
       window.location.href = '/';
     }
   });

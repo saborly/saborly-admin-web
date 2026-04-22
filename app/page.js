@@ -1,6 +1,14 @@
 'use client';
-import React, { useState, useEffect, createContext, useContext } from 'react';
-import { Eye, EyeOff, Shield, Lock, Mail, AlertCircle, CheckCircle, Users, Settings, BarChart3, LogOut } from 'lucide-react';
+import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import {
+  pickDefaultBranchFromList,
+  pickPreferredLoginBranch,
+  formatBranchMenuLabel,
+  getStoreLoginOptions,
+  clearAdminAuthStorage,
+  BRANCH_ID_FALLBACK,
+} from '@/lib/clientBranchId';
+import { Eye, EyeOff, Shield, Lock, Mail, AlertCircle, CheckCircle, MapPin, ChevronDown, Building2 } from 'lucide-react';
 import RestaurantAdminDashboard from './component/dashoard';
 import Dashoard from './admin/page';
 
@@ -27,31 +35,54 @@ const AuthProvider = ({ children }) => {
           setAuthToken(token);
           setUser(parsedUser);
         } else {
-          // Clear invalid role data
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('user');
+          clearAdminAuthStorage();
         }
       } catch (error) {
         console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
+        clearAdminAuthStorage();
       }
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, explicitBranchId) => {
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
-      const branchId =
-        (typeof window !== 'undefined' &&
-          (localStorage.getItem('branchId') || process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID)) ||
-        process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID;
+      const explicit =
+        explicitBranchId != null && String(explicitBranchId).trim() !== ''
+          ? String(explicitBranchId).trim()
+          : '';
+
+      // Resolve branch: explicit selection first, then env default (never read old stale localStorage here)
+      let branchId =
+        explicit ||
+        (process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID || '').trim() ||
+        null;
+
+      if (!branchId) {
+        const brRes = await fetch(`${apiBase}/branches/public`);
+        const brData = await brRes.json().catch(() => ({}));
+        if (brData.success && Array.isArray(brData.branches) && brData.branches.length) {
+          branchId = pickDefaultBranchFromList(brData.branches);
+        }
+      }
+
+      if (!branchId) {
+        return {
+          success: false,
+          message:
+            'Could not determine branch. Set NEXT_PUBLIC_DEFAULT_BRANCH_ID or NEXT_PUBLIC_SABADELL_BRANCH_ID, or ensure /branches/public returns at least one branch.',
+        };
+      }
+
+      // Write the chosen branch BEFORE the API call so it's set even if the response is slow
+      localStorage.setItem('branchId', branchId);
+
       const response = await fetch(`${apiBase}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(branchId && { 'X-Branch-Id': branchId }),
+          'X-Branch-Id': branchId,
         },
         body: JSON.stringify({ 
           email: email.toLowerCase().trim(), 
@@ -62,11 +93,11 @@ const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (data.success && ADMIN_ROLES.includes(data.user.role)) {
+        // Always overwrite with the branch the server confirmed (sessionBranchId)
+        const confirmedBranch = (data.user.branchId || '').trim() || branchId;
+        localStorage.setItem('branchId', confirmedBranch);
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        if (data.user.branchId) {
-          localStorage.setItem('branchId', data.user.branchId);
-        }
         
         setAuthToken(data.token);
         setUser(data.user);
@@ -92,10 +123,8 @@ const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('branchId');
-    
+    clearAdminAuthStorage();
+
     setAuthToken(null);
     setUser(null);
     
@@ -111,7 +140,7 @@ const AuthProvider = ({ children }) => {
     isLoading,
     login,
     logout,
-    isAuthenticated: !!authToken && !!user && user.role === 'admin'
+    isAuthenticated: !!(authToken && user && ADMIN_ROLES.includes(user.role)),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -137,6 +166,68 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [branches, setBranches] = useState([]);
+  const [branchesLoading, setBranchesLoading] = useState(true);
+  // Pre-select Sabadell from env immediately so a branch is always chosen before API loads
+  const [selectedBranchId, setSelectedBranchId] = useState(() => {
+    const sab = (process.env.NEXT_PUBLIC_SABADELL_BRANCH_ID || BRANCH_ID_FALLBACK.SABADELL || '').trim();
+    const def = (process.env.NEXT_PUBLIC_DEFAULT_BRANCH_ID || BRANCH_ID_FALLBACK.BARCELONA || '').trim();
+    return sab || def || '';
+  });
+
+  useEffect(() => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
+    let cancelled = false;
+    (async () => {
+      try {
+        const brRes = await fetch(`${apiBase}/branches/public`);
+        const brData = await brRes.json().catch(() => ({}));
+        if (cancelled || !brData.success || !Array.isArray(brData.branches)) return;
+        const list = [...brData.branches].sort((a, b) =>
+          String(a.name || '').localeCompare(String(b.name || ''))
+        );
+        setBranches(list);
+      } catch {
+        /* env-only store cards still work via getStoreLoginOptions */
+      } finally {
+        if (!cancelled) setBranchesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const storeOptions = useMemo(() => getStoreLoginOptions(branches), [branches]);
+  const barcelonaBranch = storeOptions.barcelona;
+  const sabadellBranch = storeOptions.sabadell;
+  const showBarcelonaSabadellCards = storeOptions.showDual;
+
+  useEffect(() => {
+    if (branchesLoading) return;
+    const so = getStoreLoginOptions(branches);
+    setSelectedBranchId((prev) => {
+      if (so.showDual && so.barcelona && so.sabadell) {
+        const a = String(so.barcelona._id);
+        const b = String(so.sabadell._id);
+        // Keep user's explicit card pick; only auto-select if prev is not one of these two ids
+        if (prev === a || prev === b) return prev;
+        return b; // Default to Sabadell when branches load (no stale localStorage read)
+      }
+      if (prev && branches.some((x) => String(x._id) === prev)) return prev;
+      const stored =
+        typeof window !== 'undefined' ? localStorage.getItem('branchId') : null;
+      if (stored && branches.some((x) => String(x._id) === stored)) return stored;
+      const pick = pickPreferredLoginBranch(branches);
+      return pick ? String(pick) : prev;
+    });
+  }, [branchesLoading, branches]);
+
+  const otherBranches = useMemo(() => {
+    if (!storeOptions.showDual || !storeOptions.barcelona || !storeOptions.sabadell) return [];
+    const ids = new Set([String(storeOptions.barcelona._id), String(storeOptions.sabadell._id)]);
+    return branches.filter((b) => !ids.has(String(b._id)));
+  }, [branches, storeOptions]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -184,11 +275,21 @@ const LoginPage = () => {
     setMessage({ type: '', text: '' });
     
     if (!validateForm()) return;
+
+    const bid = selectedBranchId.trim();
+    if (!bid) {
+      setMessage({ type: 'error', text: 'Please select a store location before signing in.' });
+      return;
+    }
     
     setIsLoading(true);
     
     try {
-      const result = await login(formData.email, formData.password);
+      const result = await login(
+        formData.email,
+        formData.password,
+        bid
+      );
       
       if (!result.success) {
         setMessage({
@@ -249,7 +350,9 @@ const LoginPage = () => {
               <Shield className="h-7 w-7" />
             </div>
             <h2 className="text-3xl font-semibold">Secure Admin Sign-In</h2>
-            <p className="mt-3 text-sm text-slate-500">Use your corporate Saborly credentials to continue.</p>
+            <p className="mt-3 text-sm text-slate-500">
+              Choose your store, then sign in. Organization admins use the same account for Barcelona or Sabadell.
+            </p>
           </div>
 
           {message.text && (
@@ -266,6 +369,111 @@ const LoginPage = () => {
           )}
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+            <div className="space-y-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Store location</label>
+
+              {branchesLoading && !storeOptions.showDual ? (
+                <p className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                  Loading locations…
+                </p>
+              ) : showBarcelonaSabadellCards ? (
+                <>
+                  <p className="text-sm font-medium text-slate-800">Choose Barcelona or Sabadell</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[
+                      { br: barcelonaBranch, label: 'Barcelona' },
+                      { br: sabadellBranch, label: 'Sabadell' },
+                    ].map(({ br, label }) => {
+                      const id = String(br._id);
+                      const active = selectedBranchId === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => setSelectedBranchId(id)}
+                          disabled={isLoading}
+                          className={`flex flex-col items-start gap-2 rounded-2xl border-2 px-4 py-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60 ${
+                            active
+                              ? 'border-slate-900 bg-slate-900 text-white shadow-md'
+                              : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Building2
+                              className={`h-5 w-5 shrink-0 ${active ? 'text-white' : 'text-slate-500'}`}
+                              aria-hidden
+                            />
+                            <span className="text-base font-semibold tracking-tight">{label}</span>
+                          </span>
+                          <span
+                            className={`text-xs leading-snug ${active ? 'text-slate-200' : 'text-slate-500'}`}
+                          >
+                            {formatBranchMenuLabel(br)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {otherBranches.length > 0 ? (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-xs font-medium text-slate-500">Other locations</label>
+                      <div className="relative">
+                        <MapPin className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        <select
+                          value={
+                            otherBranches.some((b) => String(b._id) === selectedBranchId)
+                              ? selectedBranchId
+                              : ''
+                          }
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v) setSelectedBranchId(v);
+                          }}
+                          disabled={isLoading}
+                          className="w-full cursor-pointer appearance-none rounded-2xl border border-slate-200 bg-white py-3.5 pl-12 pr-12 text-sm font-medium text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900/15"
+                        >
+                          <option value="">Select another location…</option>
+                          {otherBranches.map((b) => (
+                            <option key={b._id} value={String(b._id)}>
+                              {formatBranchMenuLabel(b)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="relative">
+                  <MapPin className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={selectedBranchId}
+                    onChange={(e) => setSelectedBranchId(e.target.value)}
+                    disabled={isLoading || branchesLoading || branches.length === 0}
+                    className="w-full cursor-pointer appearance-none rounded-2xl border border-slate-200 bg-white py-4 pl-12 pr-12 text-sm font-medium text-slate-900 shadow-sm transition focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {branches.length === 0 && !branchesLoading ? (
+                      <option value="">Use server default (env)</option>
+                    ) : null}
+                    {branches.map((b) => (
+                      <option key={b._id} value={String(b._id)}>
+                        {formatBranchMenuLabel(b)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <p className="text-xs leading-relaxed text-slate-500">
+                <span className="font-medium text-slate-700">Super-admin</span> and{' '}
+                <span className="font-medium text-slate-700">platform admin</span> can use the same email and password
+                for <span className="font-medium text-slate-700">either</span> location. Store staff must select their
+                assigned branch.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email address</label>
               <div className="relative">
@@ -326,7 +534,12 @@ const LoginPage = () => {
 
             <button
               type="submit"
-              disabled={isLoading || !formData.email || !formData.password}
+              disabled={
+                isLoading ||
+                !formData.email ||
+                !formData.password ||
+                ((storeOptions.showDual || branches.length > 0) && !selectedBranchId)
+              }
               className="w-full rounded-2xl bg-slate-900 py-4 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-900/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? (
@@ -379,8 +592,7 @@ const ProtectedRoute = ({ children }) => {
     return <LoginPage />;
   }
 
-  // Additional check to ensure user is superadmin
-  if (user?.role !== 'admin') {
+  if (!user?.role || !ADMIN_ROLES.includes(user.role)) {
     return <LoginPage />;
   }
 
