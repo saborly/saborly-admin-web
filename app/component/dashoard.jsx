@@ -49,6 +49,7 @@ import { MenuItemsGrid } from './MenuItemsSection';
 import { OrdersGrid } from './OrdersSection';
 import AdminShell from './AdminShell';
 import { adminNavigation } from './navigationConfig';
+import SettingsSection from './SettingsSection';
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -1538,9 +1539,7 @@ const loadOffers = async (params = {}) => {
           />
         );
       case 'settings':
-        return (
-          <SettingsForm />
-        );
+        return <SettingsSection />;
       default:
         return <div>Content not found</div>;
     }

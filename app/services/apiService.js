@@ -284,4 +284,11 @@ async getOrders(params = {}) {
       body: JSON.stringify({ isEnabled: enabled, disabledMessage }),
     });
   }
+
+  async toggleFirstOrderDiscount(isEnabled, discountPercentage) {
+    return this.request('/settings/first-order-discount/toggle', {
+      method: 'PATCH',
+      body: JSON.stringify({ isEnabled, ...(discountPercentage !== undefined && { discountPercentage }) }),
+    });
+  }
 }
