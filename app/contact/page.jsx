@@ -34,7 +34,9 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { getClientBranchId } from '@/lib/clientBranchId';
+import { getClientBranchId, clearAdminAuthStorage } from '@/lib/clientBranchId';
+import AdminShell from '../component/AdminShell';
+import { adminNavigation } from '../component/navigationConfig';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.saborly.es/api/v1';
 
@@ -111,25 +113,25 @@ const NotificationDialog = ({ isOpen, onClose, title, message, type = 'success' 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl">
-        <div className="p-8 text-center">
-          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 ${
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-md w-full shadow-xl border border-slate-200">
+        <div className="p-6 text-center">
+          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
             type === 'success' ? 'bg-emerald-50' : 'bg-red-50'
           }`}>
             {type === 'success' ? (
-              <Check className="w-8 h-8 text-emerald-600" />
+              <Check className="w-6 h-6 text-emerald-600" />
             ) : (
-              <AlertTriangle className="w-8 h-8 text-red-600" />
+              <AlertTriangle className="w-6 h-6 text-red-600" />
             )}
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">{title}</h3>
-          <p className="text-gray-600 mb-8">{message}</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+          <p className="text-gray-600 mb-6 text-sm">{message}</p>
           <button
             onClick={onClose}
-            className={`w-full px-6 py-3 text-white rounded-xl font-medium transition-all shadow-lg ${
-              type === 'success' 
-                ? 'bg-emerald-600 hover:bg-emerald-700' 
+            className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition ${
+              type === 'success'
+                ? 'bg-emerald-600 hover:bg-emerald-700'
                 : 'bg-red-600 hover:bg-red-700'
             }`}
           >
@@ -146,24 +148,24 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl">
-        <div className="p-8 text-center">
-          <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 bg-red-50">
-            <AlertTriangle className="w-8 h-8 text-red-600" />
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-md w-full shadow-xl border border-slate-200">
+        <div className="p-6 text-center">
+          <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-red-50">
+            <AlertTriangle className="w-6 h-6 text-red-600" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">{title}</h3>
-          <p className="text-gray-600 mb-8">{message}</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+          <p className="text-gray-600 mb-6 text-sm">{message}</p>
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 font-medium transition-all"
+              className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 px-6 py-3 text-white bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-all shadow-lg"
+              className="flex-1 px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition"
             >
               {confirmText}
             </button>
@@ -343,19 +345,21 @@ const AdminContactPage = () => {
     return badges[status] || 'bg-gray-100 text-gray-700 border-gray-300';
   };
 
-  const navigationItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: LayoutDashboard, gradient: 'from-blue-500 to-indigo-600' },
-    { id: 'categories', name: 'Categories', icon: Grid3X3, gradient: 'from-emerald-500 to-teal-600' },
-    { id: 'menu-items', name: 'Menu Items', icon: MenuIcon, gradient: 'from-orange-500 to-red-600' },
-    { id: 'offers', name: 'Offers', icon: Percent, gradient: 'from-purple-500 to-pink-600' },
-    { id: 'orders', name: 'Orders', icon: ShoppingBag, gradient: 'from-cyan-500 to-blue-600' },
-    { id: 'contact', name: 'Contact Us', icon: MessageSquare, gradient: 'from-rose-500 to-pink-600' },
-    { id: 'banners', name: 'Banners', icon: ImageIcon, gradient: 'from-indigo-500 to-purple-600' },
-    { id: 'settings', name: 'Settings', icon: Settings, gradient: 'from-gray-500 to-gray-700' },
+  const handleSidebarNavigate = (item) => {
+    if (item.href) {
+      router.push(item.href);
+      return;
+    }
+    setActiveTab(item.id);
+  };
+
+  const statusBadges = [
+    { label: `Total ${stats.total || 0}`, icon: <MessageSquare className="h-3 w-3 text-slate-500" /> },
+    { label: `Pending ${stats.pending || 0}`, icon: <span className="h-2 w-2 rounded-full bg-amber-400" /> },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+    <>
       <NotificationDialog
         isOpen={notificationDialog.isOpen}
         onClose={() => setNotificationDialog({ isOpen: false, title: '', message: '', type: 'success' })}
@@ -372,254 +376,184 @@ const AdminContactPage = () => {
         confirmText="Delete"
       />
 
-      {/* Header */}
-      <header className="bg-white shadow-xl border-b border-gray-100 sticky top-0 z-40 backdrop-blur-md bg-opacity-90">
-        <div className="flex items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-6">
-            <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 p-3 rounded-2xl shadow-lg">
-              <Package className="w-8 h-8 text-white" />
+      <AdminShell
+        title="Saborly Admin"
+        subtitle="Keep markets, menus and fulfilment aligned from a single, executive workspace."
+        statusBadges={statusBadges}
+        showSearch={false}
+        sidebarItems={adminNavigation}
+        activeSidebarItem="contact"
+        onSidebarNavigate={handleSidebarNavigate}
+      >
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: 'Total', value: stats.total || 0 },
+            { label: 'Pending', value: stats.pending || 0 },
+            { label: 'Replied', value: stats.replied || 0 },
+            { label: 'This Week', value: stats.recent || 0 },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-400">{s.label}</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{s.value}</p>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Restaurant Admin</h1>
-              <p className="text-sm text-gray-600 font-medium">Manage your restaurant efficiently</p>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+              <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search by name, email, or subject..."
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 outline-none"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-sm font-medium transition"
+              >
+                Search
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <button className="relative p-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-2xl transition-all">
-              <Bell className="w-6 h-6" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                <span className="text-xs text-white font-bold">{stats.pending || 0}</span>
-              </div>
-            </button>
-            <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-4 py-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-sm font-bold text-white">AD</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold text-gray-900">Admin User</span>
-                <p className="text-xs text-gray-500">Restaurant Owner</p>
-              </div>
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            </div>
-            <button className="p-3 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all">
-              <LogOut className="w-6 h-6" />
+
+            <select
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-900/10 outline-none"
+              value={statusFilter}
+              onChange={(e) => handleFilterChange(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="read">Read</option>
+              <option value="replied">Replied</option>
+              <option value="archived">Archived</option>
+            </select>
+
+            <button
+              onClick={loadData}
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition"
+              title="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         </div>
-      </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <nav className="w-80 bg-white shadow-xl h-[calc(100vh-97px)] sticky top-[97px] border-r border-gray-100">
-          <div className="p-8">
+        {/* Contacts List */}
+        {loading && contacts.length === 0 ? (
+          <div className="flex items-center justify-center h-72">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm">Loading contacts...</p>
+            </div>
+          </div>
+        ) : contacts.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-16 text-center shadow-sm">
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="w-7 h-7 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Messages Yet</h3>
+              <p className="text-gray-500 text-sm">
+                Contact messages from customers will appear here.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
             <div className="space-y-3">
-              {navigationItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (item.id !== 'contact') {
-                      router.push('/');
-                    } else {
-                      setActiveTab(item.id);
-                    }
-                  }}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-left transition-all duration-300 font-semibold ${
-                    activeTab === item.id
-                      ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg transform scale-[1.02]`
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 hover:scale-[1.01]'
-                  }`}
+              {contacts.map((contact) => (
+                <div
+                  key={contact._id}
+                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-slate-300 transition"
                 >
-                  <div className={`p-2 rounded-xl ${activeTab === item.id ? 'bg-white bg-opacity-20' : 'bg-gray-100'}`}>
-                    <item.icon className="w-5 h-5" />
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-base font-semibold text-gray-900">{contact.name}</h3>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusBadge(contact.status)}`}>
+                          {contact.status.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1.5 mb-3">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Mail className="w-4 h-4" />
+                          <span>{contact.email}</span>
+                        </div>
+                        {contact.phone && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Phone className="w-4 h-4" />
+                            <span>{contact.phone}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Clock className="w-4 h-4" />
+                          <span>{new Date(contact.createdAt).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <p className="font-medium text-gray-800 mb-1">{contact.subject}</p>
+                      <p className="text-gray-500 line-clamp-2 text-sm">{contact.message}</p>
+                    </div>
+
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleViewContact(contact)}
+                        className="px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium flex items-center gap-2"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDelete(contact)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <span>{item.name}</span>
-                </button>
+                </div>
               ))}
             </div>
 
-            {/* Stats Panel */}
-            <div className="mt-10 p-6 bg-gradient-to-br from-rose-50 to-pink-100 rounded-2xl border border-rose-200">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Contact Stats
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total</span>
-                  <span className="font-bold text-gray-900">{stats.total || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Pending</span>
-                  <span className="font-bold text-yellow-600">{stats.pending || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Replied</span>
-                  <span className="font-bold text-emerald-600">{stats.replied || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">This Week</span>
-                  <span className="font-bold text-blue-600">{stats.recent || 0}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </nav>
-
-        {/* Main Content */}
-        <main className="flex-1 px-8 py-8">
-          {/* Filters */}
-          <div className="mb-6 p-4 bg-white rounded-2xl shadow-lg border border-gray-200">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-                <Search className="w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or subject..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
+            {/* Pagination */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <span className="text-sm text-gray-500">
+                Showing {contacts.length} of {pagination.total} contacts
+              </span>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={handleSearch}
-                  className="px-6 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 font-medium transition-all"
+                  onClick={() => loadContacts({ page: pagination.page - 1 })}
+                  disabled={pagination.page === 1}
+                  className="px-3 py-2 bg-slate-100 rounded-lg disabled:opacity-50 hover:bg-slate-200 transition text-sm font-medium"
                 >
-                  Search
+                  Previous
+                </button>
+                <span className="px-3 py-2 text-sm font-medium text-gray-700">
+                  Page {pagination.page} of {pagination.pages}
+                </span>
+                <button
+                  onClick={() => loadContacts({ page: pagination.page + 1 })}
+                  disabled={pagination.page === pagination.pages}
+                  className="px-3 py-2 bg-slate-100 rounded-lg disabled:opacity-50 hover:bg-slate-200 transition text-sm font-medium"
+                >
+                  Next
                 </button>
               </div>
-              
-              <select
-                className="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                value={statusFilter}
-                onChange={(e) => handleFilterChange(e.target.value)}
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="read">Read</option>
-                <option value="replied">Replied</option>
-                <option value="archived">Archived</option>
-              </select>
-
-              <button
-                onClick={loadData}
-                className="p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
             </div>
-          </div>
+          </>
+        )}
+      </AdminShell>
 
-          {/* Contacts List */}
-          {loading && contacts.length === 0 ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <Loader2 className="w-12 h-12 animate-spin text-rose-600 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium">Loading contacts...</p>
-              </div>
-            </div>
-          ) : contacts.length === 0 ? (
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-16 text-center">
-              <div className="max-w-md mx-auto">
-                <div className="w-24 h-24 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <MessageSquare className="w-12 h-12 text-rose-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">No Messages Yet</h3>
-                <p className="text-gray-600">
-                  Contact messages from customers will appear here.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-4">
-                {contacts.map((contact) => (
-                  <div
-                    key={contact._id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-all"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-gray-900">{contact.name}</h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusBadge(contact.status)}`}>
-                            {contact.status.toUpperCase()}
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-2 mb-3">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Mail className="w-4 h-4" />
-                            <span>{contact.email}</span>
-                          </div>
-                          {contact.phone && (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Phone className="w-4 h-4" />
-                              <span>{contact.phone}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Clock className="w-4 h-4" />
-                            <span>{new Date(contact.createdAt).toLocaleString()}</span>
-                          </div>
-                        </div>
-
-                        <p className="font-semibold text-gray-800 mb-2">{contact.subject}</p>
-                        <p className="text-gray-600 line-clamp-2">{contact.message}</p>
-                      </div>
-
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() => handleViewContact(contact)}
-                          className="px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-all text-sm font-semibold flex items-center gap-2"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleDelete(contact)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              <div className="mt-6 flex items-center justify-between bg-white rounded-2xl shadow-lg border border-gray-200 p-4">
-                <span className="text-sm text-gray-600">
-                  Showing {contacts.length} of {pagination.total} contacts
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => loadContacts({ page: pagination.page - 1 })}
-                    disabled={pagination.page === 1}
-                    className="px-4 py-2 bg-gray-100 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all text-sm font-medium"
-                  >
-                    Previous
-                  </button>
-                  <span className="px-4 py-2 text-sm font-medium text-gray-700">
-                    Page {pagination.page} of {pagination.pages}
-                  </span>
-                  <button
-                    onClick={() => loadContacts({ page: pagination.page + 1 })}
-                    disabled={pagination.page === pagination.pages}
-                    className="px-4 py-2 bg-gray-100 rounded-xl disabled:opacity-50 hover:bg-gray-200 transition-all text-sm font-medium"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </main>
-      </div>
-         {showDetailModal && selectedContact && (
-  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
-    <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl my-8">
-      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-rose-50 via-pink-50 to-purple-50">
+      {showDetailModal && selectedContact && (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4  overflow-y-auto">
+    <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl my-8">
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 ">
         <h3 className="text-2xl font-bold text-gray-900">Contact Details</h3>
         <button onClick={() => setShowDetailModal(false)} className="p-2 hover:bg-white/60 rounded-xl transition-all">
           <X className="w-6 h-6 text-gray-600" />
@@ -629,7 +563,7 @@ const AdminContactPage = () => {
       <div className="p-6 overflow-y-auto max-h-[calc(90vh-88px)]">
         <div className="space-y-6">
           {/* Contact Info */}
-          <div className="bg-gray-50 rounded-2xl p-6">
+          <div className="bg-gray-50 rounded-lg p-6">
             <h4 className="font-bold text-gray-900 mb-4">Contact Information</h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -660,7 +594,7 @@ const AdminContactPage = () => {
           </div>
 
           {/* Message */}
-          <div className="bg-blue-50 rounded-2xl p-6">
+          <div className="bg-blue-50 rounded-lg p-6">
             <h4 className="font-bold text-gray-900 mb-2">Subject</h4>
             <p className="text-gray-900 mb-4">{selectedContact.subject}</p>
             <h4 className="font-bold text-gray-900 mb-2">Message</h4>
@@ -669,7 +603,7 @@ const AdminContactPage = () => {
 
           {/* Reply Section */}
           {selectedContact.replied && selectedContact.replyMessage && (
-            <div className="bg-emerald-50 rounded-2xl p-6">
+            <div className="bg-emerald-50 rounded-lg p-6">
               <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
                 <Check className="w-5 h-5 text-emerald-600" />
                 Reply Sent
@@ -682,7 +616,7 @@ const AdminContactPage = () => {
           )}
 
           {/* Status Update Section */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-200">
+          <div className="bg-white rounded-lg p-6 border border-gray-200">
             <h4 className="font-bold text-gray-900 mb-4">Update Status</h4>
             <div className="flex flex-wrap gap-3 mb-4">
               {['pending', 'read', 'replied', 'archived'].map((status) => (
@@ -745,9 +679,9 @@ const AdminContactPage = () => {
   </div>
 )}
  {showReplyModal && selectedContact && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-green-50">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 ">
+          <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 ">
               <h3 className="text-2xl font-bold text-gray-900">Reply to {selectedContact.name}</h3>
               <button 
                 onClick={() => {
@@ -762,7 +696,7 @@ const AdminContactPage = () => {
             </div>
             
             <div className="p-6">
-              <div className="mb-4 bg-gray-50 rounded-2xl p-4">
+              <div className="mb-4 bg-gray-50 rounded-lg p-4">
                 <p className="text-sm font-semibold text-gray-600 mb-1">Original Subject:</p>
                 <p className="text-gray-900">{selectedContact.subject}</p>
               </div>
@@ -810,10 +744,10 @@ const AdminContactPage = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
-  
+
 };
- 
+
 
 export default AdminContactPage

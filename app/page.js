@@ -308,24 +308,17 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent" />
-        <div className="backdrop-grid" />
-        <div className="absolute left-1/3 top-1/4 h-72 w-72 -translate-x-1/2 rounded-full bg-fuchsia-500/30 blur-[150px]" />
-        <div className="absolute right-0 bottom-10 h-60 w-60 rounded-full bg-orange-500/20 blur-[180px]" />
-      </div>
-
+    <div className="relative min-h-screen bg-slate-100 text-slate-900">
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 lg:grid lg:grid-cols-[1.1fr,0.9fr] lg:items-stretch lg:px-10">
-        <section className="glass-panel bg-white p-8 text-black shadow-2xl">
+        <section className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="flex h-full flex-col justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-slate-900">Saborly Admin</p>
-              <h1 className="mt-6 text-4xl font-semibold leading-tight text-black">Command center for culinary operations</h1>
-              <p className="mt-4 text-base text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Saborly Admin</p>
+              <h1 className="mt-4 text-3xl font-semibold leading-tight text-slate-900">Command center for culinary operations</h1>
+              <p className="mt-4 text-base text-slate-600">
                 Monitor performance, update menus and resolve orders with a polished control room built for decisive teams.
               </p>
-              <ul className="mt-8 space-y-4 text-sm text-slate-800">
+              <ul className="mt-8 space-y-4 text-sm text-slate-700">
                 <li className="flex items-center gap-3">
                   <CheckCircle className="h-5 w-5 text-emerald-600" />
                   Enterprise-grade security with MFA-ready workflows
@@ -344,12 +337,12 @@ const LoginPage = () => {
           </div>
         </section>
 
-        <section className="glass-panel bg-white p-8 text-slate-900 shadow-2xl">
+        <section className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
           <div className="text-center">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-orange-500 text-white shadow-lg">
-              <Shield className="h-7 w-7" />
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-white">
+              <Shield className="h-6 w-6" />
             </div>
-            <h2 className="text-3xl font-semibold">Secure Admin Sign-In</h2>
+            <h2 className="text-2xl font-semibold">Secure Admin Sign-In</h2>
             <p className="mt-3 text-sm text-slate-500">
               Choose your store, then sign in. Organization admins use the same account for Barcelona or Sabadell.
             </p>
@@ -357,7 +350,7 @@ const LoginPage = () => {
 
           {message.text && (
             <div
-              className={`mt-6 flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm ${
+              className={`mt-6 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${
                 message.type === 'error'
                   ? 'border-red-200 bg-red-50 text-red-700'
                   : 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -373,7 +366,7 @@ const LoginPage = () => {
               <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Store location</label>
 
               {branchesLoading && !storeOptions.showDual ? (
-                <p className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                <p className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
                   Loading locations…
                 </p>
               ) : showBarcelonaSabadellCards ? (
@@ -392,7 +385,7 @@ const LoginPage = () => {
                           type="button"
                           onClick={() => setSelectedBranchId(id)}
                           disabled={isLoading}
-                          className={`flex flex-col items-start gap-2 rounded-2xl border-2 px-4 py-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60 ${
+                          className={`flex flex-col items-start gap-2 rounded-lg border-2 px-4 py-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60 ${
                             active
                               ? 'border-slate-900 bg-slate-900 text-white shadow-md'
                               : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50'
@@ -431,7 +424,7 @@ const LoginPage = () => {
                             if (v) setSelectedBranchId(v);
                           }}
                           disabled={isLoading}
-                          className="w-full cursor-pointer appearance-none rounded-2xl border border-slate-200 bg-white py-3.5 pl-12 pr-12 text-sm font-medium text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900/15"
+                          className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white py-3.5 pl-12 pr-12 text-sm font-medium text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-900/15"
                         >
                           <option value="">Select another location…</option>
                           {otherBranches.map((b) => (
@@ -452,7 +445,7 @@ const LoginPage = () => {
                     value={selectedBranchId}
                     onChange={(e) => setSelectedBranchId(e.target.value)}
                     disabled={isLoading || branchesLoading || branches.length === 0}
-                    className="w-full cursor-pointer appearance-none rounded-2xl border border-slate-200 bg-white py-4 pl-12 pr-12 text-sm font-medium text-slate-900 shadow-sm transition focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/15 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white py-4 pl-12 pr-12 text-sm font-medium text-slate-900 shadow-sm transition focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-900/15 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {branches.length === 0 && !branchesLoading ? (
                       <option value="">Use server default (env)</option>
@@ -486,7 +479,7 @@ const LoginPage = () => {
                   placeholder="admin@saorely.com"
                   autoComplete="email"
                   disabled={isLoading}
-                  className={`w-full rounded-2xl border px-5 py-4 pl-12 text-sm font-medium text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-slate-900/60 ${
+                  className={`w-full rounded-lg border px-5 py-4 pl-12 text-sm font-medium text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-slate-900/60 ${
                     errors.email ? 'border-red-300 ring-red-200' : 'border-slate-200 bg-slate-50'
                   }`}
                 />
@@ -511,7 +504,7 @@ const LoginPage = () => {
                   placeholder="••••••••"
                   autoComplete="current-password"
                   disabled={isLoading}
-                  className={`w-full rounded-2xl border px-5 py-4 pl-12 pr-14 text-sm font-medium text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-slate-900/60 ${
+                  className={`w-full rounded-lg border px-5 py-4 pl-12 pr-14 text-sm font-medium text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-slate-900/60 ${
                     errors.password ? 'border-red-300 ring-red-200' : 'border-slate-200 bg-slate-50'
                   }`}
                 />
@@ -540,7 +533,7 @@ const LoginPage = () => {
                 !formData.password ||
                 ((storeOptions.showDual || branches.length > 0) && !selectedBranchId)
               }
-              className="w-full rounded-2xl bg-slate-900 py-4 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-900/30 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg bg-slate-900 py-4 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-900/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center gap-3">

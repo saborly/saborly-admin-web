@@ -82,16 +82,16 @@ const quickHighlightsTemplate = (stats, formatCurrencyFn) => ([
   },
 ]);
 
-const panelShellClass = 'glass-panel rounded-3xl border border-white/70 bg-white/95 shadow-xl';
-const sectionHeadingClass = 'text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400';
+const panelShellClass = 'rounded-xl border border-slate-200 bg-white shadow-sm';
+const sectionHeadingClass = 'text-xs font-semibold uppercase tracking-wide text-slate-400';
 const inputBaseClass =
-  'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10 outline-none transition disabled:bg-slate-50 disabled:text-slate-400';
+  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-slate-400 focus:ring-2 focus:ring-slate-900/5 outline-none transition disabled:bg-slate-50 disabled:text-slate-400';
 const primaryButtonClass =
-  'inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-slate-900 text-white hover:bg-slate-800 focus-visible:outline-slate-900 disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-slate-900 text-white hover:bg-slate-800 focus-visible:outline-slate-900 disabled:opacity-50 disabled:cursor-not-allowed';
 const secondaryButtonClass =
-  'inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-slate-300';
+  'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 bg-slate-100 text-slate-700 hover:bg-slate-200 focus-visible:outline-slate-300';
 const ghostButtonClass =
-  'inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 text-slate-500 hover:bg-slate-100 focus-visible:outline-slate-300';
+  'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 text-slate-500 hover:bg-slate-100 focus-visible:outline-slate-300';
 const highlightIconMap = {
   'Monthly revenue': Euro,
   'Orders this week': ShoppingBag,
@@ -407,31 +407,31 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl transform transition-all border-0 overflow-hidden">
-        <div className="p-8 text-center">
-          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 ${type === 'danger' ? 'bg-red-50' : 'bg-amber-50'
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden">
+        <div className="p-6 text-center">
+          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${type === 'danger' ? 'bg-red-50' : 'bg-amber-50'
             }`}>
             {type === 'danger' ? (
-              <AlertTriangle className="w-8 h-8 text-red-600" />
+              <AlertTriangle className="w-6 h-6 text-red-600" />
             ) : (
-              <AlertCircle className="w-8 h-8 text-amber-600" />
+              <AlertCircle className="w-6 h-6 text-amber-600" />
             )}
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">{title}</h3>
-          <p className="text-gray-600 mb-8 leading-relaxed">{message}</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+          <p className="text-gray-600 mb-6 leading-relaxed text-sm">{message}</p>
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 font-medium transition-all duration-200 hover:scale-[0.98]"
+              className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition"
             >
               {cancelText}
             </button>
             <button
               onClick={onConfirm}
-              className={`flex-1 px-6 py-3 text-white rounded-xl font-medium transition-all duration-200 hover:scale-[0.98] shadow-lg ${type === 'danger'
-                ? 'bg-red-600 hover:bg-red-700 shadow-red-200'
-                : 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
+              className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition ${type === 'danger'
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-amber-600 hover:bg-amber-700'
                 }`}
             >
               {confirmText}
@@ -448,24 +448,24 @@ const NotificationDialog = ({ isOpen, onClose, title, message, type = "success" 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl transform transition-all border-0 overflow-hidden">
-        <div className="p-8 text-center">
-          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6 ${type === 'success' ? 'bg-emerald-50' : 'bg-red-50'
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden">
+        <div className="p-6 text-center">
+          <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${type === 'success' ? 'bg-emerald-50' : 'bg-red-50'
             }`}>
             {type === 'success' ? (
-              <Check className="w-8 h-8 text-emerald-600" />
+              <Check className="w-6 h-6 text-emerald-600" />
             ) : (
-              <AlertTriangle className="w-8 h-8 text-red-600" />
+              <AlertTriangle className="w-6 h-6 text-red-600" />
             )}
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">{title}</h3>
-          <p className="text-gray-600 mb-8 leading-relaxed">{message}</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+          <p className="text-gray-600 mb-6 leading-relaxed text-sm">{message}</p>
           <button
             onClick={onClose}
-            className={`w-full px-6 py-3 text-white rounded-xl font-medium transition-all duration-200 hover:scale-[0.98] shadow-lg ${type === 'success'
-              ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
-              : 'bg-red-600 hover:bg-red-700 shadow-red-200'
+            className={`w-full px-4 py-2.5 text-white rounded-lg font-medium transition ${type === 'success'
+              ? 'bg-emerald-600 hover:bg-emerald-700'
+              : 'bg-red-600 hover:bg-red-700'
               }`}
           >
             Continue
@@ -769,10 +769,10 @@ const FormArrayField = ({ items, onChange, fieldConfig, title }) => {
   );
 };
 
-const RestaurantAdminDashboard = () => {
+const RestaurantAdminDashboard = ({ initialTab = 'dashboard' }) => {
   const [modalType, setModalType] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [apiService] = useState(new ApiService());
@@ -1188,7 +1188,7 @@ const loadOffers = async (params = {}) => {
         {quickHighlights.map((highlight) => {
           const Icon = highlightIconMap[highlight.label] || TrendingUp;
           return (
-            <div key={highlight.label} className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
+            <div key={highlight.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-wide text-slate-400">{highlight.label}</p>
                 <span className="rounded-xl bg-slate-100 p-2 text-slate-600">
@@ -1204,7 +1204,7 @@ const loadOffers = async (params = {}) => {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {opsFocus.map((focus) => (
-          <div key={focus.title} className="rounded-2xl border border-slate-100 bg-white/80 p-4 text-sm text-slate-600 shadow-sm">
+          <div key={focus.title} className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-slate-900">{focus.title}</p>
               <span
@@ -1232,45 +1232,45 @@ const loadOffers = async (params = {}) => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <div className="space-y-10">
+          <div className="space-y-8">
             <DashboardStats />
 
             {/* Recent Orders */}
-            <div className={`${panelShellClass} p-8`}>
-              <div className="flex justify-between items-center mb-8">
+            <div className={`${panelShellClass} p-6`}>
+              <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Recent Orders</h2>
-                  <p className="text-sm text-gray-600 mt-1">Latest customer orders</p>
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Latest customer orders</p>
                 </div>
                 <button
                   onClick={() => setActiveTab('orders')}
-                  className="text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center gap-2 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all"
+                  className="text-slate-600 hover:text-slate-900 font-medium text-sm flex items-center gap-1 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition"
                 >
                   View All <ChevronDown className="w-4 h-4 rotate-[-90deg]" />
                 </button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {orders.slice(0, 5).map((order) => (
                   <div
                     key={order._id}
-                    className="flex items-center justify-between p-6 bg-gradient-to-r from-gray-50 to-white rounded-2xl border border-gray-100 hover:shadow-md transition-all duration-200"
+                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-2xl shadow-lg">
-                        <ShoppingBag className="w-6 h-6 text-white" />
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-50 p-2.5 rounded-lg">
+                        <ShoppingBag className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">{order.orderNumber || `Order #${order._id?.slice(-6)}`}</p>
-                        <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">
+                        <p className="font-medium text-gray-900">{order.orderNumber || `Order #${order._id?.slice(-6)}`}</p>
+                        <p className="text-sm text-gray-500 flex items-center gap-2 mt-0.5">
                           <Users className="w-4 h-4" />
                           {order.userId?.fullName || order.customerName}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-lg text-gray-900">{formatCurrency(order.total)}</p>
+                      <p className="font-semibold text-gray-900">{formatCurrency(order.total)}</p>
                       <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getStatusColor(
+                        className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full border ${getStatusColor(
                           order.status
                         )}`}
                       >
@@ -1283,7 +1283,7 @@ const loadOffers = async (params = {}) => {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {[
                 {
                   title: 'Manage Categories',
@@ -1308,16 +1308,16 @@ const loadOffers = async (params = {}) => {
                   type="button"
                   key={action.title}
                   onClick={action.action}
-                  className={`${panelShellClass} flex h-full flex-col items-start gap-4 rounded-3xl p-6 text-left transition hover:-translate-y-1 hover:shadow-2xl`}
+                  className={`${panelShellClass} flex h-full flex-col items-start gap-3 p-5 text-left transition hover:border-slate-300 hover:shadow-md`}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <div className="rounded-2xl bg-slate-900/5 p-3 text-slate-900">
+                    <div className="rounded-lg bg-slate-100 p-2.5 text-slate-700">
                       <action.icon className="h-5 w-5" />
                     </div>
                     <ChevronDown className="h-4 w-4 rotate-[-90deg] text-slate-300" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{action.title}</h3>
+                    <h3 className="text-base font-semibold text-slate-900">{action.title}</h3>
                     <p className="mt-1 text-sm text-slate-500">{action.description}</p>
                   </div>
                 </button>
@@ -1702,71 +1702,59 @@ const loadOffers = async (params = {}) => {
   // Navigation items
   // Enhanced Dashboard Stats Component
   const DashboardStats = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {[
         {
           title: 'Total Revenue',
           value: formatCurrency(dashboardStats.revenue.current),
           growth: `+${dashboardStats.revenue.growth}%`,
           icon: Euro,
-          gradient: 'from-emerald-500 to-emerald-600',
-          bgGradient: 'from-emerald-50 to-emerald-100',
-          iconBg: 'bg-emerald-500',
+          iconBg: 'bg-emerald-50 text-emerald-600',
         },
         {
           title: 'Total Orders',
           value: dashboardStats.orders.current.toLocaleString(),
           growth: `+${dashboardStats.orders.growth}%`,
           icon: ShoppingBag,
-          gradient: 'from-blue-500 to-blue-600',
-          bgGradient: 'from-blue-50 to-blue-100',
-          iconBg: 'bg-blue-500',
+          iconBg: 'bg-blue-50 text-blue-600',
         },
         {
           title: 'Active Customers',
           value: dashboardStats.customers.current.toLocaleString(),
           growth: `+${dashboardStats.customers.growth}%`,
           icon: Users,
-          gradient: 'from-purple-500 to-purple-600',
-          bgGradient: 'from-purple-50 to-purple-100',
-          iconBg: 'bg-purple-500',
+          iconBg: 'bg-purple-50 text-purple-600',
         },
         {
           title: 'Menu Items',
           value: dashboardStats.menuItems.current,
           growth: `${categories.length} categories`,
           icon: Package,
-          gradient: 'from-orange-500 to-orange-600',
-          bgGradient: 'from-orange-50 to-orange-100',
-          iconBg: 'bg-orange-500',
+          iconBg: 'bg-orange-50 text-orange-600',
         },
         {
           title: 'Active Offers',
           value: dashboardStats.activeOffers.current,
           growth: `+${dashboardStats.activeOffers.growth}%`,
           icon: Percent,
-          gradient: 'from-purple-500 to-pink-600',
-          bgGradient: 'from-purple-50 to-pink-100',
-          iconBg: 'bg-purple-500',
+          iconBg: 'bg-pink-50 text-pink-600',
         },
       ].map((stat, index) => (
         <div
           key={index}
-          className={`relative p-8 rounded-3xl shadow-lg border-0 bg-gradient-to-br ${stat.bgGradient} hover:shadow-xl transition-all duration-300 hover:scale-[1.02] overflow-hidden`}
+          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
         >
-          <div className="relative flex items-start justify-between">
+          <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-600 mb-2">{stat.title}</p>
-              <p className="text-3xl font-bold text-gray-900 mb-3 leading-none">{stat.value}</p>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 px-2 py-1 bg-white bg-opacity-70 rounded-full">
-                  <TrendingUp className="w-3 h-3 text-emerald-600" />
-                  <span className="text-xs font-semibold text-emerald-700">{stat.growth}</span>
-                </div>
+              <p className="text-sm text-slate-500 mb-1">{stat.title}</p>
+              <p className="text-2xl font-semibold text-slate-900 mb-2 leading-none">{stat.value}</p>
+              <div className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                <TrendingUp className="w-3 h-3" />
+                <span>{stat.growth}</span>
               </div>
             </div>
-            <div className={`${stat.iconBg} p-4 rounded-2xl shadow-lg`}>
-              <stat.icon className="w-7 h-7 text-white" />
+            <div className={`${stat.iconBg} p-3 rounded-lg`}>
+              <stat.icon className="w-5 h-5" />
             </div>
           </div>
         </div>
@@ -1780,17 +1768,17 @@ const loadOffers = async (params = {}) => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div className={`bg-white rounded-3xl ${size} w-full max-h-[90vh] overflow-hidden shadow-2xl border-0`}>
-          <div className="flex items-center justify-between p-8 border-b border-gray-100 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
-            <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
+        <div className={`bg-white rounded-xl ${size} w-full max-h-[90vh] overflow-hidden shadow-xl border border-slate-200`}>
+          <div className="flex items-center justify-between p-6 border-b border-slate-200">
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <button
               onClick={closeModal}
-              className="p-3 hover:bg-white hover:bg-opacity-60 rounded-2xl transition-all duration-200 group"
+              className="p-2 hover:bg-slate-100 rounded-lg transition group"
             >
-              <X className="w-6 h-6 text-gray-600 group-hover:text-gray-900" />
+              <X className="w-5 h-5 text-gray-500 group-hover:text-gray-900" />
             </button>
           </div>
-          <div className="p-8 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
             {children}
           </div>
         </div>
@@ -3419,7 +3407,7 @@ const loadOffers = async (params = {}) => {
         sidebarItems={adminNavigation}
         activeSidebarItem={activeTab}
         onSidebarNavigate={handleSidebarNavigate}
-        headerChildren={headerHighlights}
+        headerChildren={activeTab === 'dashboard' ? headerHighlights : null}
       >
         {mainContent}
       </AdminShell>
