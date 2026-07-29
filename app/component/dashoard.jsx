@@ -1811,20 +1811,24 @@ const loadOffers = async (params = {}) => {
     ];
 
     const [formData, setFormData] = useState({
-      name: editingItem?._multilingual?.name || {
-        en: editingItem?.name || '',
-        es: '',
-        ca: '',
-        ar: '',
-        fr: '',
-      },
-      description: editingItem?._multilingual?.description || {
-        en: editingItem?.description || '',
-        es: '',
-        ca: '',
-        ar: '',
-        fr: '',
-      },
+      name: editingItem?._multilingual?.name || (typeof editingItem?.name === 'object' && editingItem?.name
+        ? { en: '', es: '', ca: '', ar: '', fr: '', ...editingItem.name }
+        : {
+          en: editingItem?.name || '',
+          es: '',
+          ca: '',
+          ar: '',
+          fr: '',
+        }),
+      description: editingItem?._multilingual?.description || (typeof editingItem?.description === 'object' && editingItem?.description
+        ? { en: '', es: '', ca: '', ar: '', fr: '', ...editingItem.description }
+        : {
+          en: editingItem?.description || '',
+          es: '',
+          ca: '',
+          ar: '',
+          fr: '',
+        }),
       price: editingItem?.price || 0,
       originalPrice: editingItem?.originalPrice || 0,
       imageUrl: editingItem?.imageUrl || '',
@@ -1888,20 +1892,24 @@ const loadOffers = async (params = {}) => {
         sodium: 0,
       },
       seoData: {
-        metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || {
-          en: editingItem?.seoData?.metaTitle || '',
-          es: '',
-          ca: '',
-          ar: '',
-          fr: '',
-        },
-        metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || {
-          en: editingItem?.seoData?.metaDescription || '',
-          es: '',
-          ca: '',
-          ar: '',
-          fr: '',
-        },
+        metaTitle: editingItem?._multilingual?.seoData?.metaTitle || editingItem?.seoData?._multilingual?.metaTitle || (typeof editingItem?.seoData?.metaTitle === 'object' && editingItem?.seoData?.metaTitle
+          ? { en: '', es: '', ca: '', ar: '', fr: '', ...editingItem.seoData.metaTitle }
+          : {
+            en: editingItem?.seoData?.metaTitle || '',
+            es: '',
+            ca: '',
+            ar: '',
+            fr: '',
+          }),
+        metaDescription: editingItem?._multilingual?.seoData?.metaDescription || editingItem?.seoData?._multilingual?.metaDescription || (typeof editingItem?.seoData?.metaDescription === 'object' && editingItem?.seoData?.metaDescription
+          ? { en: '', es: '', ca: '', ar: '', fr: '', ...editingItem.seoData.metaDescription }
+          : {
+            en: editingItem?.seoData?.metaDescription || '',
+            es: '',
+            ca: '',
+            ar: '',
+            fr: '',
+          }),
         keywords: editingItem?.seoData?.keywords?.map(keyword => typeof keyword === 'object' ? keyword.en : keyword).join(', ') || '',
       },
     });
@@ -2514,8 +2522,12 @@ const loadOffers = async (params = {}) => {
   // Enhanced Category Form Component
   const CategoryForm = () => {
     const [formData, setFormData] = useState({
-    name: editingItem?._multilingual?.name || { en: '', es: '', ca: '', ar: '', fr: '' }, // Added French
-    description: editingItem?._multilingual?.description || { en: '', es: '', ca: '', ar: '', fr: '' }, // Added French
+    name: editingItem?._multilingual?.name || (typeof editingItem?.name === 'object' && editingItem?.name
+      ? { en: '', es: '', ca: '', ar: '', fr: '', ...editingItem.name }
+      : { en: editingItem?.name || '', es: '', ca: '', ar: '', fr: '' }),
+    description: editingItem?._multilingual?.description || (typeof editingItem?.description === 'object' && editingItem?.description
+      ? { en: '', es: '', ca: '', ar: '', fr: '', ...editingItem.description }
+      : { en: editingItem?.description || '', es: '', ca: '', ar: '', fr: '' }),
       imageUrl: editingItem?.imageUrl || '',
       icon: editingItem?.icon || '',
       isActive: editingItem?.isActive !== false,
