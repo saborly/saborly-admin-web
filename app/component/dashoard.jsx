@@ -1408,7 +1408,7 @@ const loadOffers = async (params = {}) => {
             data={categories}
             title="Categories"
             onEdit={(item) => openModal('category', item)}
-            onDelete={handleDelete}
+            onDelete={(id) => handleDelete(id, 'category')}
             onAdd={() => openModal('category')}
             showSearch={false}
             columns={[
