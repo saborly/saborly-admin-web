@@ -50,6 +50,7 @@ import { OrdersGrid } from './OrdersSection';
 import AdminShell from './AdminShell';
 import { adminNavigation } from './navigationConfig';
 import SettingsSection from './SettingsSection';
+import DriversSection from './DriversSection';
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -1540,6 +1541,8 @@ const loadOffers = async (params = {}) => {
         );
       case 'settings':
         return <SettingsSection />;
+      case 'drivers':
+        return <DriversSection />;
       default:
         return <div>Content not found</div>;
     }

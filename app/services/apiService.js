@@ -291,4 +291,16 @@ async getOrders(params = {}) {
       body: JSON.stringify({ isEnabled, ...(discountPercentage !== undefined && { discountPercentage }) }),
     });
   }
+
+  // Drivers API
+  async getDrivers() {
+    return this.request('/drivers/available');
+  }
+
+  async createDriver(data) {
+    return this.request('/drivers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }

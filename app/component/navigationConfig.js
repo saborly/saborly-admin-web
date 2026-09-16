@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   Settings,
   Mail,
+  Bike,
 } from 'lucide-react';
 
 export const adminNavigation = [
@@ -16,6 +17,7 @@ export const adminNavigation = [
   { id: 'menu-items', label: 'Menu Items', icon: MenuIcon, gradient: 'from-orange-500 to-red-600', href: '/menu-items' },
   { id: 'offers', label: 'Offers', icon: Percent, gradient: 'from-purple-500 to-pink-600', href: '/offer' },
   { id: 'orders', label: 'Orders', icon: ShoppingBag, gradient: 'from-cyan-500 to-blue-600', href: '/orders' },
+  { id: 'drivers', label: 'Drivers', icon: Bike, gradient: 'from-sky-500 to-cyan-600', href: '/drivers' },
   { id: 'promotions', label: 'Promotions', icon: Mail, gradient: 'from-fuchsia-500 to-purple-600', href: '/promotions' },
   { id: 'contact', label: 'Contact', icon: MessageSquare, gradient: 'from-rose-500 to-pink-600', href: '/contact' },
   { id: 'banners', label: 'Banners', icon: ImageIcon, gradient: 'from-indigo-500 to-purple-600', href: '/banners' },
